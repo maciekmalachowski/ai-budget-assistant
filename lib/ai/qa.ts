@@ -48,7 +48,7 @@ export async function answerQuestion(
     for (const block of response.content) {
       if (block.type !== "tool_use") continue;
       toolCalls.push({ name: block.name, input: block.input });
-      const impl = (tools as Record<string, ((input: unknown) => Promise<unknown>) | undefined>)[block.name];
+      const impl = (tools as unknown as Record<string, ((input: unknown) => Promise<unknown>) | undefined>)[block.name];
       let resultText: string;
       try {
         const output = impl
