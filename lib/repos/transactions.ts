@@ -1,20 +1,29 @@
 import type { Db } from "@/lib/supabase/admin";
 import type { TransactionDraft } from "@/lib/domain/types";
 
-/** The set of dedup_hashes from `hashes` that already exist for this account. */
+const HASH_QUERY_CHUNK = 500;
+
+/**
+ * The subset of `hashes` that already exist for this account. Chunked so it stays
+ * well under PostgREST's max-rows / URL limits on large batches. (Used for import preview.)
+ */
 export async function getExistingHashes(
   db: Db,
   accountId: string,
   hashes: string[],
 ): Promise<Set<string>> {
-  if (hashes.length === 0) return new Set();
-  const { data, error } = await db
-    .from("transactions")
-    .select("dedup_hash")
-    .eq("account_id", accountId)
-    .in("dedup_hash", hashes);
-  if (error) throw new Error(error.message);
-  return new Set((data ?? []).map((r) => r.dedup_hash));
+  const found = new Set<string>();
+  for (let i = 0; i < hashes.length; i += HASH_QUERY_CHUNK) {
+    const slice = hashes.slice(i, i + HASH_QUERY_CHUNK);
+    const { data, error } = await db
+      .from("transactions")
+      .select("dedup_hash")
+      .eq("account_id", accountId)
+      .in("dedup_hash", slice);
+    if (error) throw new Error(error.message);
+    for (const row of data ?? []) found.add(row.dedup_hash);
+  }
+  return found;
 }
 
 export interface InsertResult {
@@ -23,8 +32,9 @@ export interface InsertResult {
 }
 
 /**
- * Insert transaction drafts for an account, skipping any whose dedup_hash already
- * exists for that account. Returns how many were inserted vs skipped as duplicates.
+ * Insert transaction drafts for an account, atomically skipping any whose
+ * (account_id, dedup_hash) already exists. Relies on the DB unique constraint via
+ * upsert/ignoreDuplicates, so it is free of check-then-insert races and IN() size caps.
  */
 export async function insertDrafts(
   db: Db,
@@ -34,16 +44,7 @@ export async function insertDrafts(
 ): Promise<InsertResult> {
   if (drafts.length === 0) return { inserted: 0, duplicates: 0 };
 
-  const existing = await getExistingHashes(
-    db,
-    accountId,
-    drafts.map((d) => d.dedupHash),
-  );
-  const fresh = drafts.filter((d) => !existing.has(d.dedupHash));
-  const duplicates = drafts.length - fresh.length;
-  if (fresh.length === 0) return { inserted: 0, duplicates };
-
-  const rows = fresh.map((d) => ({
+  const rows = drafts.map((d) => ({
     account_id: accountId,
     booked_at: d.bookedAt,
     amount_minor: d.amountMinor,
@@ -58,7 +59,13 @@ export async function insertDrafts(
 
   const { error, count } = await db
     .from("transactions")
-    .insert(rows, { count: "exact" });
+    .upsert(rows, {
+      onConflict: "account_id,dedup_hash",
+      ignoreDuplicates: true,
+      count: "exact",
+    });
   if (error) throw new Error(error.message);
-  return { inserted: count ?? fresh.length, duplicates };
+
+  const inserted = count ?? 0;
+  return { inserted, duplicates: drafts.length - inserted };
 }

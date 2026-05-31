@@ -35,7 +35,7 @@ afterAll(async () => {
   await db.from("accounts").delete().eq("id", accountId);
 });
 
-describe("transactions repository (integration)", () => {
+describe.sequential("transactions repository (integration)", () => {
   it("inserts fresh drafts and reports counts", async () => {
     const res = await insertDrafts(db, accountId, null, [
       draft({ dedupHash: "h1" }),
