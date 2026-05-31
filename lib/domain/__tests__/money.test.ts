@@ -23,6 +23,9 @@ describe("parseAmount", () => {
     expect(() => parseAmount("abc", { decimalSep: "," })).toThrow();
     expect(() => parseAmount("", { decimalSep: "," })).toThrow();
   });
+  it("parses a plain integer with no decimal part", () => {
+    expect(parseAmount("100", { decimalSep: "," })).toBe(10000);
+  });
 });
 
 describe("combineDebitCredit", () => {
@@ -36,5 +39,8 @@ describe("combineDebitCredit", () => {
   it("throws when both sides are empty or both non-zero", () => {
     expect(() => combineDebitCredit("", "", { decimalSep: "," })).toThrow();
     expect(() => combineDebitCredit("10,00", "5,00", { decimalSep: "," })).toThrow();
+  });
+  it("treats an explicit zero with the other side blank as a zero amount", () => {
+    expect(combineDebitCredit("0,00", "", { decimalSep: "," })).toBe(0);
   });
 });

@@ -4,7 +4,11 @@ export interface AmountParseOptions {
   decimals?: number;
 }
 
-/** Parse a localized money string into signed integer minor units. */
+/**
+ * Parse a localized money string into signed integer minor units.
+ * Supports leading sign and parentheses-negatives; trailing-sign formats
+ * (e.g. "87,40-") are NOT supported.
+ */
 export function parseAmount(raw: string, opts: AmountParseOptions): number {
   const decimals = opts.decimals ?? 2;
   let s = raw.trim();
@@ -37,7 +41,11 @@ export function parseAmount(raw: string, opts: AmountParseOptions): number {
   return sign * minor;
 }
 
-/** Combine a bank's separate debit/credit columns into one signed minor-unit value. */
+/**
+ * Combine a bank's separate debit/credit columns into one signed minor-unit value.
+ * Debit → negative, credit → positive. A blank cell means "absent"; an explicit
+ * "0,00" yields a 0 amount. Throws only when both cells are blank, or both are non-zero.
+ */
 export function combineDebitCredit(
   debitRaw: string,
   creditRaw: string,
@@ -45,11 +53,13 @@ export function combineDebitCredit(
 ): number {
   const d = debitRaw.trim();
   const c = creditRaw.trim();
-  const dv = d === "" ? 0 : parseAmount(d, opts);
-  const cv = c === "" ? 0 : parseAmount(c, opts);
-  if (dv === 0 && cv === 0) {
-    throw new Error("Both debit and credit are empty or zero");
+  const hasD = d !== "";
+  const hasC = c !== "";
+  if (!hasD && !hasC) {
+    throw new Error("Both debit and credit are empty");
   }
+  const dv = hasD ? parseAmount(d, opts) : 0;
+  const cv = hasC ? parseAmount(c, opts) : 0;
   if (dv !== 0 && cv !== 0) {
     throw new Error("Both debit and credit are non-zero");
   }

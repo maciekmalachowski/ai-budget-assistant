@@ -9,6 +9,9 @@ describe("normalizeMerchant", () => {
   it("keeps short digit tokens (they may be meaningful)", () => {
     expect(normalizeMerchant("Sklep 12")).toBe("SKLEP 12");
   });
+  it("returns an empty string for empty input", () => {
+    expect(normalizeMerchant("")).toBe("");
+  });
 });
 
 describe("computeDedupHash", () => {

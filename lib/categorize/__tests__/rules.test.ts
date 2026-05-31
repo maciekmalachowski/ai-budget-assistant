@@ -32,4 +32,9 @@ describe("categorizeByRules", () => {
     const bad: MerchantRule[] = [{ matchType: "regex", pattern: "[", categoryId: "x" }];
     expect(() => categorizeByRules("anything", "ANYTHING", bad)).toThrow();
   });
+  it("treats 'contains' patterns literally, not as regex", () => {
+    const r: MerchantRule[] = [{ matchType: "contains", pattern: "SHOP.COM", categoryId: "x" }];
+    expect(categorizeByRules("MY SHOP.COM STORE", "MY SHOP.COM", r)).toBe("x");
+    expect(categorizeByRules("SHOPXCOM", "SHOPXCOM", r)).toBeNull();
+  });
 });

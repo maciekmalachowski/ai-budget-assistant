@@ -13,7 +13,7 @@ export function normalizeMerchant(rawDescription: string): string {
 }
 
 /** Whitespace/case-insensitive canonical form of a description, for stable hashing. */
-function canonicalizeForHash(rawDescription: string): string {
+export function canonicalizeForHash(rawDescription: string): string {
   return rawDescription.toUpperCase().replace(/\s+/g, " ").trim();
 }
 
@@ -28,12 +28,12 @@ export interface DedupHashInput {
 
 /** Deterministic per-account dedup key: hash(account|date|amount|canonicalDesc|occurrence). */
 export function computeDedupHash(input: DedupHashInput): string {
-  const canonical = [
+  const canonical = JSON.stringify([
     input.accountId,
     input.bookedAt,
-    String(input.amountMinor),
+    input.amountMinor,
     canonicalizeForHash(input.rawDescription),
-    String(input.occurrence),
-  ].join("|");
+    input.occurrence,
+  ]);
   return createHash("sha256").update(canonical, "utf8").digest("hex");
 }

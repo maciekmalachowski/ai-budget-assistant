@@ -6,7 +6,7 @@ import type {
   TransactionDraft,
 } from "@/lib/domain/types";
 import { applyMapping } from "@/lib/csv/mapping";
-import { normalizeMerchant, computeDedupHash } from "@/lib/domain/normalize";
+import { normalizeMerchant, computeDedupHash, canonicalizeForHash } from "@/lib/domain/normalize";
 import { categorizeByRules } from "@/lib/categorize/rules";
 
 export interface BuildDraftsInput {
@@ -21,9 +21,6 @@ export interface BuildDraftsResult {
   errors: RowError[];
 }
 
-function canonicalDesc(raw: string): string {
-  return raw.toUpperCase().replace(/\s+/g, " ").trim();
-}
 
 /**
  * Turn parsed CSV rows into ready-to-persist transaction drafts:
@@ -40,12 +37,12 @@ export function buildTransactionDrafts(input: BuildDraftsInput): BuildDraftsResu
       const fields = applyMapping(row, input.mapping);
       const merchant = normalizeMerchant(fields.rawDescription);
 
-      const baseKey = [
+      const baseKey = JSON.stringify([
         input.accountId,
         fields.bookedAt,
         fields.amountMinor,
-        canonicalDesc(fields.rawDescription),
-      ].join("|");
+        canonicalizeForHash(fields.rawDescription),
+      ]);
       const occurrence = occurrenceCounts.get(baseKey) ?? 0;
       occurrenceCounts.set(baseKey, occurrence + 1);
 

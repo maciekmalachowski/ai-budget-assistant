@@ -19,4 +19,7 @@ describe("parseDate", () => {
     expect(() => parseDate("32.13.2026", "DD.MM.YYYY")).toThrow();
     expect(() => parseDate("29.02.2027", "DD.MM.YYYY")).toThrow(); // 2027 not leap
   });
+  it("accepts a valid leap day", () => {
+    expect(parseDate("29.02.2028", "DD.MM.YYYY")).toBe("2028-02-29");
+  });
 });

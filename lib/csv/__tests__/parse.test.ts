@@ -1,4 +1,5 @@
 // @vitest-environment node
+// (needs node:fs to read fixture files; the global vitest env is jsdom)
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import iconv from "iconv-lite";

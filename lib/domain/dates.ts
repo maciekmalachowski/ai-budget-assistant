@@ -36,5 +36,6 @@ export function parseDate(raw: string, format: DateFormat): string {
 
   const mm = String(month).padStart(2, "0");
   const dd = String(day).padStart(2, "0");
-  return `${year}-${mm}-${dd}`;
+  const yyyy = String(year).padStart(4, "0");
+  return `${yyyy}-${mm}-${dd}`;
 }

@@ -31,7 +31,7 @@ export type Delimiter = (typeof DELIMITERS)[number];
 /** Pick the delimiter that appears most often in the first (header) line. */
 export function detectDelimiter(text: string): Delimiter {
   const firstLine = text.split(/\r?\n/, 1)[0] ?? "";
-  let best: Delimiter = ",";
+  let best: Delimiter = DELIMITERS[0];
   let bestCount = -1;
   for (const d of DELIMITERS) {
     const count = firstLine.split(d).length - 1;
