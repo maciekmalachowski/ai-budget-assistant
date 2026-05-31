@@ -540,11 +540,13 @@ npm run build       # Expected: "Compiled successfully"
 ```bash
 git add package.json package-lock.json tsconfig.json next.config.ts \
   postcss.config.mjs eslint.config.mjs vitest.config.ts vitest.setup.ts \
-  components.json .env.example README.md app lib next-env.d.ts
+  components.json .env.example README.md app lib
 git commit -m "feat: scaffold Next.js + Tailwind + shadcn + Vitest foundations"
 ```
 
-Expected: commit succeeds. Do **not** `git add .` — that would sweep in the untracked `.claude/` and `.claude-plugin/` tooling directories. Add paths explicitly as above. (`.next/` and `node_modules/` are already gitignored.)
+Expected: commit succeeds. Notes:
+- Do **not** `git add .` — that would sweep in the untracked `.claude/` and `.claude-plugin/` tooling directories. Add paths explicitly as above.
+- `next-env.d.ts`, `.next/`, and `node_modules/` are already gitignored — don't add them (this is standard for Next.js).
 
 ---
 
