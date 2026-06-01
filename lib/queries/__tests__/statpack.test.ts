@@ -34,4 +34,24 @@ describe("buildStatPack", () => {
     expect(pack.topMerchants[0]).toEqual({ merchant: "BIEDRONKA", spentMinor: -13000 });
     expect(pack.newMerchants).toEqual(["NETFLIX"]);
   });
+
+  it("excludes income merchants and categories from spend-only breakdowns", () => {
+    const pack = buildStatPack({
+      periodLabel: "May 2026",
+      currency: "PLN",
+      // GIFT is a brand-new income merchant in the current period (absent from previous).
+      current: [
+        { amountMinor: -3000, merchant: "BIEDRONKA", currency: "PLN", categoryName: "Groceries" },
+        { amountMinor: 12000, merchant: "GIFT", currency: "PLN", categoryName: "Income" },
+      ],
+      previous: [
+        { amountMinor: -3000, merchant: "BIEDRONKA", currency: "PLN", categoryName: "Groceries" },
+      ],
+    });
+    // A new *income* merchant must not surface as a "new merchant" (spend-only).
+    expect(pack.newMerchants).toEqual([]);
+    // Income categories/merchants must not appear in the spend breakdowns.
+    expect(pack.byCategory.some((c) => c.category === "Income")).toBe(false);
+    expect(pack.topMerchants.some((m) => m.merchant === "GIFT")).toBe(false);
+  });
 });

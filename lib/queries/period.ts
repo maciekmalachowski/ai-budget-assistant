@@ -49,8 +49,10 @@ export function parsePeriod(period: string): PeriodBounds {
 export function previousMonth(month: string): string {
   const m = /^(\d{4})-(\d{2})$/.exec(month.trim());
   if (!m) throw new Error(`Not a month: ${month}`);
+  const monthNum = Number(m[2]);
+  if (monthNum < 1 || monthNum > 12) throw new Error(`Invalid month: ${month}`);
   let year = Number(m[1]);
-  let mon = Number(m[2]) - 1;
+  let mon = monthNum - 1;
   if (mon === 0) {
     mon = 12;
     year -= 1;

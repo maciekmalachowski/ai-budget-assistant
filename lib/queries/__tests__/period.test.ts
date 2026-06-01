@@ -36,7 +36,9 @@ describe("previousMonth", () => {
     expect(previousMonth("2026-01")).toBe("2025-12");
   });
 
-  it("throws when given something that is not a month", () => {
+  it("throws when given something that is not a month or an out-of-range month", () => {
     expect(() => previousMonth("2026-05-01")).toThrow();
+    expect(() => previousMonth("2026-13")).toThrow();
+    expect(() => previousMonth("2026-00")).toThrow();
   });
 });
