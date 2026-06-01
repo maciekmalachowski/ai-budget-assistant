@@ -28,4 +28,10 @@ describe("generateInsight", () => {
     expect(arg.system[0].cache_control).toEqual({ type: "ephemeral" });
     expect(arg.messages[0].content).toContain("May 2026");
   });
+
+  it("throws when the response has no text content", async () => {
+    const create = vi.fn().mockResolvedValue({ content: [] });
+    const client = { messages: { create } } as unknown as Anthropic;
+    await expect(generateInsight(client, pack)).rejects.toThrow();
+  });
 });

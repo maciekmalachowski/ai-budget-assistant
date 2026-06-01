@@ -22,13 +22,15 @@ export async function generateInsight(client: Anthropic, statPack: InsightStatPa
   const response = await client.messages.create({
     model: MODELS.insights,
     max_tokens: 1024,
-    system: [{ type: "text", text: SYSTEM, cache_control: { type: "ephemeral" } }],
+    system: [{ type: "text", text: SYSTEM, cache_control: { type: "ephemeral" } }], // cache_control engages once the system prompt exceeds the model's cache minimum (~2048 tokens for Sonnet)
     messages: [{ role: "user", content: JSON.stringify(statPack) }],
   });
 
-  return response.content
+  const text = response.content
     .filter((b): b is Anthropic.TextBlock => b.type === "text")
     .map((b) => b.text)
     .join("")
     .trim();
+  if (!text) throw new Error("Insights response contained no text block");
+  return text;
 }

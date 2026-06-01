@@ -28,7 +28,7 @@ export async function answerQuestion(
     const response = await client.messages.create({
       model: MODELS.qa,
       max_tokens: 1024,
-      system: [{ type: "text", text: SYSTEM, cache_control: { type: "ephemeral" } }],
+      system: [{ type: "text", text: SYSTEM, cache_control: { type: "ephemeral" } }], // cache_control engages once system+tools exceed the model's cache minimum (~2048 tokens for Sonnet)
       tools: QA_TOOLS,
       messages: [...messages],
     });
