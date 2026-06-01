@@ -2,6 +2,7 @@ import type { Db } from "@/lib/supabase/admin";
 import type { TransactionDraft, CategorySource } from "@/lib/domain/types";
 import type { TxnRow } from "@/lib/queries/types";
 import { getCategoryNameToId } from "@/lib/repos/categories";
+import { AI_CONFIDENCE_THRESHOLD } from "@/lib/import/ai-apply";
 
 const HASH_QUERY_CHUNK = 500;
 
@@ -110,6 +111,8 @@ export interface TxnFilter {
   minAmountMinor?: number;
   maxAmountMinor?: number;
   accountId?: string;
+  /** Only rows that need attention: uncategorized, or AI-categorized below the confidence threshold. */
+  needsReview?: boolean;
   /** Capped at 200; defaults to 50. */
   limit?: number;
 }
@@ -122,9 +125,11 @@ export interface TxnListItem {
   merchant: string | null;
   rawDescription: string;
   category: string | null;
+  categorySource: string;
+  aiConfidence: number | null;
 }
 
-/** Filtered, newest-first, row-capped transaction list (for the list_transactions Q&A tool and the table UI). */
+/** Filtered, newest-first, row-capped transaction list (for the table UI and the list_transactions Q&A tool). */
 export async function listTransactions(db: Db, filter: TxnFilter = {}): Promise<TxnListItem[]> {
   let categoryId: string | undefined;
   if (filter.category) {
@@ -133,11 +138,12 @@ export async function listTransactions(db: Db, filter: TxnFilter = {}): Promise<
     if (!categoryId) return []; // unknown category name → no matches
   }
 
-  // Apply all filters first (filter builder), THEN order/limit (transform builder):
-  // supabase-js filter methods (.gte/.eq/.ilike) are not available after .order()/.limit().
+  // Filters first (filter builder), THEN order/limit (transform builder).
   let q = db
     .from("transactions")
-    .select("id, booked_at, amount_minor, currency, merchant, raw_description, category:categories(name)");
+    .select(
+      "id, booked_at, amount_minor, currency, merchant, raw_description, category_source, ai_confidence, category:categories(name)",
+    );
   if (filter.fromISO) q = q.gte("booked_at", filter.fromISO);
   if (filter.toISO) q = q.lte("booked_at", filter.toISO);
   if (categoryId) q = q.eq("category_id", categoryId);
@@ -145,6 +151,9 @@ export async function listTransactions(db: Db, filter: TxnFilter = {}): Promise<
   if (filter.minAmountMinor !== undefined) q = q.gte("amount_minor", filter.minAmountMinor);
   if (filter.maxAmountMinor !== undefined) q = q.lte("amount_minor", filter.maxAmountMinor);
   if (filter.accountId) q = q.eq("account_id", filter.accountId);
+  if (filter.needsReview) {
+    q = q.or(`category_source.eq.uncategorized,and(category_source.eq.ai,ai_confidence.lt.${AI_CONFIDENCE_THRESHOLD})`);
+  }
 
   const { data, error } = await q
     .order("booked_at", { ascending: false })
@@ -157,6 +166,8 @@ export async function listTransactions(db: Db, filter: TxnFilter = {}): Promise<
         currency: string;
         merchant: string | null;
         raw_description: string;
+        category_source: string;
+        ai_confidence: number | null;
         category: { name: string } | null;
       }[]
     >();
@@ -169,6 +180,8 @@ export async function listTransactions(db: Db, filter: TxnFilter = {}): Promise<
     merchant: r.merchant,
     rawDescription: r.raw_description,
     category: r.category?.name ?? null,
+    categorySource: r.category_source,
+    aiConfidence: r.ai_confidence,
   }));
 }
 

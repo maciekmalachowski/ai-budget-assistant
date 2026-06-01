@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { insertDrafts, getExistingHashes, getTransactionsInRange, listTransactions, updateTransactionCategory } from "@/lib/repos/transactions";
-import { getCategoryNameToId } from "@/lib/repos/categories";
+import { getCategoryNameToId, getCategoryNameToId as getNameToId2 } from "@/lib/repos/categories";
 import type { TransactionDraft } from "@/lib/domain/types";
 
 const db = createAdminClient();
@@ -121,5 +121,39 @@ describe.sequential("transactions query/update (integration)", () => {
     await updateTransactionCategory(db, list[0].id, groceriesId, "user");
     const after = await listTransactions(db, { accountId: acctId, merchant: "MPK" });
     expect(after[0].category).toBe("Groceries");
+  });
+});
+
+describe.sequential("listTransactions needsReview filter (integration)", () => {
+  let acctId: string;
+
+  beforeAll(async () => {
+    const { data, error } = await db.from("accounts").insert({ name: "ITEST review acct", currency: "PLN" }).select("id").single();
+    if (error) throw new Error(error.message);
+    acctId = data.id;
+    const groceriesId = (await getNameToId2(db)).get("Groceries")!;
+    await insertDrafts(db, acctId, null, [
+      draft({ dedupHash: "nr1", merchant: "RULED", categoryId: groceriesId, categorySource: "rule" }),
+      draft({ dedupHash: "nr2", merchant: "LOWAI", categoryId: groceriesId, categorySource: "ai", aiConfidence: 0.3 }),
+      draft({ dedupHash: "nr3", merchant: "HIAI", categoryId: groceriesId, categorySource: "ai", aiConfidence: 0.95 }),
+      draft({ dedupHash: "nr4", merchant: "NONE", categoryId: null, categorySource: "uncategorized" }),
+    ]);
+  });
+
+  afterAll(async () => {
+    await db.from("accounts").delete().eq("id", acctId);
+  });
+
+  it("returns only uncategorized and low-confidence AI rows", async () => {
+    const rows = await listTransactions(db, { accountId: acctId, needsReview: true });
+    const merchants = rows.map((r) => r.merchant).sort();
+    expect(merchants).toEqual(["LOWAI", "NONE"]);
+  });
+
+  it("exposes categorySource and aiConfidence on rows", async () => {
+    const all = await listTransactions(db, { accountId: acctId });
+    const hi = all.find((r) => r.merchant === "HIAI");
+    expect(hi?.categorySource).toBe("ai");
+    expect(hi?.aiConfidence).toBeCloseTo(0.95, 2);
   });
 });
