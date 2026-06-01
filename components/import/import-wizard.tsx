@@ -97,7 +97,7 @@ export function ImportWizard({ accounts, defaultCurrency }: { accounts: { id: st
 
       {step === "map" && (
         <div className="flex flex-col gap-4">
-          <p className="text-muted-foreground text-sm">New bank layout — map its columns once and we'll remember it.</p>
+          <p className="text-muted-foreground text-sm">New bank layout — map its columns once and we&apos;ll remember it.</p>
           <ColumnMappingForm header={header} defaultCurrency={defaultCurrency} onSubmit={(mapping) => void send(mapping)} />
         </div>
       )}
