@@ -40,7 +40,15 @@ export async function updateSession(
   // getUser() revalidates the token with the auth server (getSession() does not).
   const {
     data: { user },
+    error,
   } = await supabase.auth.getUser();
+
+  // A missing session is the normal logged-out case (not worth logging). Any
+  // other error means the auth backend rejected or failed the check — surface it
+  // so an outage is diagnosable instead of silently presenting as "logged out".
+  if (error && error.name !== "AuthSessionMissingError") {
+    console.error("[auth] getUser failed:", error.message);
+  }
 
   return { response, user: user ? { id: user.id, email: user.email } : null };
 }

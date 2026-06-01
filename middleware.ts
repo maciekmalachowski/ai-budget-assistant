@@ -7,6 +7,9 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Unauthenticated + gated path → send to /login.
+  // TODO(5B): once deep-linkable pages exist, preserve the requested path as a
+  // validated same-origin `redirectTo` so users return to it after signing in
+  // (never echo a raw user-supplied absolute URL — open-redirect risk).
   if (!user && !isPublicPath(pathname)) {
     const loginUrl = request.nextUrl.clone();
     loginUrl.pathname = "/login";
