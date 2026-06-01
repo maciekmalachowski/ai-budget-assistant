@@ -53,6 +53,7 @@ export async function insertDrafts(
     merchant: d.merchant,
     category_id: d.categoryId,
     category_source: d.categorySource,
+    ai_confidence: d.aiConfidence ?? null,
     import_batch_id: importBatchId,
     dedup_hash: d.dedupHash,
   }));

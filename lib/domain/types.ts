@@ -60,6 +60,8 @@ export interface TransactionDraft {
   dedupHash: string;
   categoryId: string | null;
   categorySource: CategorySource;
+  /** Model confidence (0..1) when categorySource is "ai"; otherwise absent/null. */
+  aiConfidence?: number | null;
 }
 
 /** A row that failed to parse, reported without aborting the batch. */
