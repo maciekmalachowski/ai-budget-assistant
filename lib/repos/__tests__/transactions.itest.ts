@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { insertDrafts, getExistingHashes } from "@/lib/repos/transactions";
+import { insertDrafts, getExistingHashes, getTransactionsInRange, listTransactions, updateTransactionCategory } from "@/lib/repos/transactions";
+import { getCategoryNameToId } from "@/lib/repos/categories";
 import type { TransactionDraft } from "@/lib/domain/types";
 
 const db = createAdminClient();
@@ -67,5 +68,58 @@ describe.sequential("transactions repository (integration)", () => {
 
   it("returns zeros for an empty draft list", async () => {
     expect(await insertDrafts(db, accountId, null, [])).toEqual({ inserted: 0, duplicates: 0 });
+  });
+});
+
+describe.sequential("transactions query/update (integration)", () => {
+  let acctId: string;
+  let groceriesId: string;
+
+  beforeAll(async () => {
+    const { data, error } = await db
+      .from("accounts")
+      .insert({ name: "ITEST query acct", currency: "PLN" })
+      .select("id")
+      .single();
+    if (error) throw new Error(error.message);
+    acctId = data.id;
+    groceriesId = (await getCategoryNameToId(db)).get("Groceries")!;
+
+    await insertDrafts(db, acctId, null, [
+      draft({ dedupHash: "q1", bookedAt: "2026-05-05", amountMinor: -8740, merchant: "BIEDRONKA", categoryId: groceriesId, categorySource: "rule" }),
+      draft({ dedupHash: "q2", bookedAt: "2026-05-20", amountMinor: -5000, merchant: "MPK", categoryId: null, categorySource: "uncategorized" }),
+      draft({ dedupHash: "q3", bookedAt: "2026-04-30", amountMinor: -1200, merchant: "OLD", categoryId: null, categorySource: "uncategorized" }),
+    ]);
+  });
+
+  afterAll(async () => {
+    await db.from("accounts").delete().eq("id", acctId);
+  });
+
+  it("getTransactionsInRange returns only in-range rows with category names flattened", async () => {
+    const rows = await getTransactionsInRange(db, { fromISO: "2026-05-01", toISO: "2026-05-31", accountId: acctId });
+    expect(rows).toHaveLength(2);
+    const biedronka = rows.find((r) => r.merchant === "BIEDRONKA");
+    expect(biedronka?.categoryName).toBe("Groceries");
+    expect(biedronka?.amountMinor).toBe(-8740);
+  });
+
+  it("listTransactions filters by merchant substring and caps/sorts results", async () => {
+    const rows = await listTransactions(db, { accountId: acctId, merchant: "biedron" });
+    expect(rows).toHaveLength(1);
+    expect(rows[0].category).toBe("Groceries");
+    expect(rows[0].bookedAt).toBe("2026-05-05");
+  });
+
+  it("listTransactions returns [] for an unknown category name", async () => {
+    const rows = await listTransactions(db, { accountId: acctId, category: "NoSuchCategory" });
+    expect(rows).toEqual([]);
+  });
+
+  it("updateTransactionCategory repoints a row and marks it user-sourced", async () => {
+    const list = await listTransactions(db, { accountId: acctId, merchant: "MPK" });
+    await updateTransactionCategory(db, list[0].id, groceriesId, "user");
+    const after = await listTransactions(db, { accountId: acctId, merchant: "MPK" });
+    expect(after[0].category).toBe("Groceries");
   });
 });
