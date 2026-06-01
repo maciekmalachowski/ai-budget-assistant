@@ -10,6 +10,7 @@ interface ImportSummary {
   duplicates: number;
   aiCategorized: number;
   rowCount: number;
+  errors: { rowIndex: number; message: string }[];
 }
 
 type Step = "upload" | "map" | "done";
@@ -39,19 +40,24 @@ export function ImportWizard({ accounts, defaultCurrency }: { accounts: { id: st
     if (!file || !accountId) return;
     setBusy(true);
     setError(null);
-    const result = await postImport(file, accountId, mapping);
-    setBusy(false);
-    if ("error" in result) {
-      setError(result.error);
-      return;
+    try {
+      const result = await postImport(file, accountId, mapping);
+      if ("error" in result) {
+        setError(result.error);
+        return;
+      }
+      if (result.status === "needs_mapping") {
+        setHeader(result.header);
+        setStep("map");
+        return;
+      }
+      setSummary(result);
+      setStep("done");
+    } catch {
+      setError("Upload failed — please check your connection and try again.");
+    } finally {
+      setBusy(false);
     }
-    if (result.status === "needs_mapping") {
-      setHeader(result.header);
-      setStep("map");
-      return;
-    }
-    setSummary(result);
-    setStep("done");
   }
 
   function reset() {
@@ -110,6 +116,9 @@ export function ImportWizard({ accounts, defaultCurrency }: { accounts: { id: st
             <li>Duplicates skipped: {summary.duplicates}</li>
             <li>AI-categorized: {summary.aiCategorized}</li>
             <li>Rows in file: {summary.rowCount}</li>
+            {summary.errors.length > 0 ? (
+              <li className="text-amber-600">Rows skipped (parse errors): {summary.errors.length}</li>
+            ) : null}
           </ul>
           <button type="button" onClick={reset} className="self-start rounded-md border px-4 py-2 text-sm">
             Import another
