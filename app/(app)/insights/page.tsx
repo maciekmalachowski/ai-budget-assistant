@@ -1,8 +1,16 @@
+import { InsightsView } from "@/components/insights/insights-view";
+import { currentMonth, lastNMonths } from "@/lib/format";
+
+export const dynamic = "force-dynamic";
+
 export default function InsightsPage() {
+  const month = currentMonth();
+  const months = lastNMonths(month, 12).slice().reverse(); // newest first for the dropdown
+
   return (
-    <div>
+    <div className="flex flex-col gap-6">
       <h1 className="text-2xl font-semibold">Insights</h1>
-      <p className="text-muted-foreground mt-2 text-sm">Coming soon.</p>
+      <InsightsView months={months} defaultPeriod={month} />
     </div>
   );
 }
