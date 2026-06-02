@@ -16,8 +16,13 @@ function base64url(input: string): string {
  * claimed role for the request. Exported with a `__` prefix for unit testing only.
  */
 export function __mintReadonlyJwt(secret: string, nowSeconds = Math.floor(Date.now() / 1000)): string {
+  if (!secret) throw new Error("SUPABASE_JWT_SECRET is empty");
   const header = base64url(JSON.stringify({ alg: "HS256", typ: "JWT" }));
-  const payload = base64url(JSON.stringify({ role: ROLE, iat: nowSeconds, exp: nowSeconds + TOKEN_TTL_SECONDS }));
+  // `aud: "authenticated"` matches the shape of Supabase's own anon/user tokens so
+  // PostgREST accepts it even when the project configures a `jwt-aud` check.
+  const payload = base64url(
+    JSON.stringify({ role: ROLE, aud: "authenticated", iat: nowSeconds, exp: nowSeconds + TOKEN_TTL_SECONDS }),
+  );
   const data = `${header}.${payload}`;
   const sig = createHmac("sha256", secret).update(data).digest("base64url");
   return `${data}.${sig}`;

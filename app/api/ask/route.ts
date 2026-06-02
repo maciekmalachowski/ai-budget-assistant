@@ -34,7 +34,10 @@ export async function POST(request: Request) {
     const result = await answerQuestion(getAnthropicClient(), parsed.data.question, createQueryTools(readDb));
     await logQa(writeDb, { question: parsed.data.question, answerMd: result.answer, toolCalls: result.toolCalls });
     return NextResponse.json(result);
-  } catch {
+  } catch (err) {
+    // Surface the real cause server-side (e.g. a PostgREST auth rejection of the
+    // readonly token) — the client only ever sees the generic message.
+    console.error("[ask] failed:", err instanceof Error ? err.message : err);
     return NextResponse.json({ error: "Sorry, I couldn't answer that. Please try rephrasing." }, { status: 502 });
   }
 }

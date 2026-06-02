@@ -15,6 +15,7 @@ describe("mintReadonlyJwt", () => {
     expect(decodeSegment(header)).toEqual({ alg: "HS256", typ: "JWT" });
     const claims = decodeSegment(payload);
     expect(claims.role).toBe("readonly_qa");
+    expect(claims.aud).toBe("authenticated");
     expect(typeof claims.exp).toBe("number");
   });
 
@@ -23,5 +24,9 @@ describe("mintReadonlyJwt", () => {
     const [header, payload, sig] = token.split(".");
     const expected = createHmac("sha256", secret).update(`${header}.${payload}`).digest("base64url");
     expect(sig).toBe(expected);
+  });
+
+  it("refuses an empty secret", () => {
+    expect(() => __mintReadonlyJwt("")).toThrow(/empty/i);
   });
 });
