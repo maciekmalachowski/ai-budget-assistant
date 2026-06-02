@@ -157,3 +157,23 @@ describe.sequential("listTransactions needsReview filter (integration)", () => {
     expect(hi?.aiConfidence).toBeCloseTo(0.95, 2);
   });
 });
+
+describe("listTransactions same-day ordering", () => {
+  it("orders same-day rows newest-created first", async () => {
+    const { data: acc } = await db.from("accounts").insert({ name: "SortAcc", currency: "PLN" }).select("id").single();
+    const accountId = acc!.id;
+    try {
+      await db.from("transactions").insert([
+        { account_id: accountId, booked_at: "2026-06-10", amount_minor: -100, currency: "PLN", raw_description: "first", dedup_hash: "sort-h1" },
+        { account_id: accountId, booked_at: "2026-06-10", amount_minor: -200, currency: "PLN", raw_description: "second", dedup_hash: "sort-h2" },
+      ]);
+      const rows = await listTransactions(db, { accountId, limit: 10 });
+      // both same booked_at; created_at desc => the second insert comes first
+      expect(rows[0].rawDescription).toBe("second");
+      expect(rows[1].rawDescription).toBe("first");
+    } finally {
+      await db.from("transactions").delete().eq("account_id", accountId);
+      await db.from("accounts").delete().eq("id", accountId);
+    }
+  });
+});

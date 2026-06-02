@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Select } from "@/components/ui/select";
 
 /** Search + category + needs-review filters that drive the page via URL search params. */
@@ -9,6 +9,10 @@ export function TransactionsFilters({ categories }: { categories: string[] }) {
   const router = useRouter();
   const params = useSearchParams();
   const [search, setSearch] = useState(params.get("merchant") ?? "");
+  const merchantParam = params.get("merchant") ?? "";
+  useEffect(() => {
+    setSearch(merchantParam);
+  }, [merchantParam]);
 
   function setParam(key: string, value: string) {
     const next = new URLSearchParams(params.toString());

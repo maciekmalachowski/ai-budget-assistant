@@ -157,6 +157,7 @@ export async function listTransactions(db: Db, filter: TxnFilter = {}): Promise<
 
   const { data, error } = await q
     .order("booked_at", { ascending: false })
+    .order("created_at", { ascending: false })
     .limit(Math.min(filter.limit ?? LIST_LIMIT_DEFAULT, LIST_LIMIT_MAX))
     .returns<
       {
