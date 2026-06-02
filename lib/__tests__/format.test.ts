@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { formatMoneyMinor, lastNMonths, shortMonthLabel } from "@/lib/format";
+import { formatMoneyMinor, lastNMonths, shortMonthLabel, currentMonth } from "@/lib/format";
 
 describe("formatMoneyMinor", () => {
   it("formats signed minor units as currency (deterministic en-US/USD)", () => {
@@ -29,5 +29,14 @@ describe("shortMonthLabel", () => {
   it("maps a month to its short name", () => {
     expect(shortMonthLabel("2026-05")).toBe("May");
     expect(shortMonthLabel("2026-12")).toBe("Dec");
+  });
+});
+
+describe("currentMonth", () => {
+  it("formats a Date as YYYY-MM in UTC", () => {
+    expect(currentMonth(new Date("2026-06-02T00:00:00Z"))).toBe("2026-06");
+  });
+  it("zero-pads single-digit months", () => {
+    expect(currentMonth(new Date("2026-01-15T12:00:00Z"))).toBe("2026-01");
   });
 });

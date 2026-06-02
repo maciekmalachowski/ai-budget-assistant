@@ -32,3 +32,8 @@ export function shortMonthLabel(month: string): string {
   if (idx < 0 || idx > 11) throw new Error(`Invalid month: ${month}`);
   return SHORT_MONTHS[idx];
 }
+
+/** The current month as "YYYY-MM" (UTC). Pass a fixed Date in tests for determinism. */
+export function currentMonth(now: Date = new Date()): string {
+  return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
+}

@@ -5,13 +5,9 @@ import { RecentTransactions } from "@/components/dashboard/recent-transactions";
 import { CategoryDonut } from "@/components/charts/category-donut";
 import { TrendChart } from "@/components/charts/trend-chart";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { currentMonth } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
-
-function currentMonth(): string {
-  const now = new Date();
-  return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
-}
 
 export default async function DashboardPage() {
   const db = createAdminClient();
