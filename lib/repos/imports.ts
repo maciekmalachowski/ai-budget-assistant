@@ -106,3 +106,33 @@ export async function saveProfile(
   if (error) throw new Error(error.message);
   return data.id;
 }
+
+export interface ImportProfileSummary {
+  id: string;
+  headerSignature: string;
+  delimiter: string | null;
+  encoding: string | null;
+  createdAt: string;
+}
+
+/** All saved bank-layout profiles, newest first (for the Settings page). */
+export async function listProfiles(db: Db): Promise<ImportProfileSummary[]> {
+  const { data, error } = await db
+    .from("import_profiles")
+    .select("id, header_signature, delimiter, encoding, created_at")
+    .order("created_at", { ascending: false });
+  if (error) throw new Error(error.message);
+  return (data ?? []).map((p) => ({
+    id: p.id,
+    headerSignature: p.header_signature,
+    delimiter: p.delimiter,
+    encoding: p.encoding,
+    createdAt: p.created_at,
+  }));
+}
+
+/** Delete a saved bank-layout profile. */
+export async function deleteProfile(db: Db, id: string): Promise<void> {
+  const { error } = await db.from("import_profiles").delete().eq("id", id);
+  if (error) throw new Error(error.message);
+}
