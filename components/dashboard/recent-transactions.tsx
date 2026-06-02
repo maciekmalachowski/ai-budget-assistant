@@ -20,7 +20,7 @@ export function RecentTransactions({ items, currency }: { items: TxnListItem[]; 
               {t.category ? ` · ${t.category}` : ""}
             </div>
           </div>
-          <div className={t.amountMinor < 0 ? "" : "text-emerald-600"}>
+          <div className={t.amountMinor < 0 ? "" : "text-emerald-400"}>
             {formatMoneyMinor(t.amountMinor, currency)}
           </div>
         </li>

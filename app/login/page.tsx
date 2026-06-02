@@ -42,7 +42,7 @@ export default function LoginPage() {
         </label>
 
         {state.error ? (
-          <p role="alert" className="text-sm text-red-600">
+          <p role="alert" className="text-sm text-red-400">
             {state.error}
           </p>
         ) : null}
@@ -50,7 +50,7 @@ export default function LoginPage() {
         <button
           type="submit"
           disabled={pending}
-          className="rounded-md bg-foreground px-3 py-2 text-background disabled:opacity-50"
+          className="rounded-md bg-primary px-3 py-2 text-primary-foreground disabled:opacity-50"
         >
           {pending ? "Signing in…" : "Sign in"}
         </button>

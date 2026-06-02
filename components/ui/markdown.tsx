@@ -21,7 +21,7 @@ export function Markdown({ children }: { children: string }) {
           h2: ({ children }) => <h3 className="text-base font-semibold">{children}</h3>,
           h3: ({ children }) => <h3 className="text-base font-semibold">{children}</h3>,
           a: ({ href, children }) => (
-            <a href={href} className="text-blue-600 underline" target="_blank" rel="noreferrer">
+            <a href={href} className="text-blue-400 underline" target="_blank" rel="noreferrer">
               {children}
             </a>
           ),

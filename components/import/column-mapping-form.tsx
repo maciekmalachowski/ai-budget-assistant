@@ -119,7 +119,7 @@ export function ColumnMappingForm({
         type="button"
         disabled={!valid}
         onClick={submit}
-        className="self-start rounded-md bg-foreground px-4 py-2 text-sm text-background disabled:opacity-50"
+        className="self-start rounded-md bg-primary px-4 py-2 text-sm text-primary-foreground disabled:opacity-50"
       >
         Continue
       </button>

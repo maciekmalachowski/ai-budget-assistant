@@ -90,13 +90,13 @@ export function AccountsSection({ accounts }: { accounts: AccountWithCount[] }) 
           <button
             type="submit"
             disabled={pending || !name.trim()}
-            className="bg-foreground text-background rounded-md px-4 py-2 text-sm disabled:opacity-50"
+            className="bg-primary text-primary-foreground rounded-md px-4 py-2 text-sm disabled:opacity-50"
           >
             Add account
           </button>
         </form>
 
-        {error ? <p className="text-sm text-red-600">{error}</p> : null}
+        {error ? <p className="text-sm text-red-400">{error}</p> : null}
       </CardContent>
     </Card>
   );

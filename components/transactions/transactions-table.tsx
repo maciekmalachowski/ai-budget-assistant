@@ -37,7 +37,7 @@ function CategoryCell({ row, categories }: { row: TxnListItem; categories: strin
           </option>
         ))}
       </Select>
-      {error ? <span className="text-xs text-red-600">{error}</span> : null}
+      {error ? <span className="text-xs text-red-400">{error}</span> : null}
     </div>
   );
 }
@@ -63,7 +63,7 @@ export function TransactionsTable({ rows, categories }: { rows: TxnListItem[]; c
               <td className="py-2 pr-4 whitespace-nowrap">{t.bookedAt}</td>
               <td className="py-2 pr-4">
                 <div className="font-medium">{t.merchant ?? t.rawDescription}</div>
-                {needsReview(t) ? <span className="text-xs text-amber-600">Needs review</span> : null}
+                {needsReview(t) ? <span className="text-xs text-amber-400">Needs review</span> : null}
               </td>
               <td className="py-2 pr-4">
                 <CategoryCell row={t} categories={categories} />
@@ -78,5 +78,5 @@ export function TransactionsTable({ rows, categories }: { rows: TxnListItem[]; c
 }
 
 function cnAmount(amountMinor: number): string {
-  return amountMinor < 0 ? "py-2 pr-4 text-right whitespace-nowrap" : "py-2 pr-4 text-right whitespace-nowrap text-emerald-600";
+  return amountMinor < 0 ? "py-2 pr-4 text-right whitespace-nowrap" : "py-2 pr-4 text-right whitespace-nowrap text-emerald-400";
 }

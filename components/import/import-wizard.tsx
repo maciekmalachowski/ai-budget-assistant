@@ -74,7 +74,7 @@ export function ImportWizard({ accounts, defaultCurrency }: { accounts: { id: st
 
   return (
     <div className="max-w-2xl">
-      {error ? <p className="mb-4 text-sm text-red-600">{error}</p> : null}
+      {error ? <p className="mb-4 text-sm text-red-400">{error}</p> : null}
 
       {step === "upload" && (
         <div className="flex flex-col gap-4">
@@ -94,7 +94,7 @@ export function ImportWizard({ accounts, defaultCurrency }: { accounts: { id: st
             type="button"
             disabled={!file || !accountId || busy}
             onClick={() => send()}
-            className="self-start rounded-md bg-foreground px-4 py-2 text-sm text-background disabled:opacity-50"
+            className="self-start rounded-md bg-primary px-4 py-2 text-sm text-primary-foreground disabled:opacity-50"
           >
             {busy ? "Uploading…" : "Continue"}
           </button>
@@ -117,7 +117,7 @@ export function ImportWizard({ accounts, defaultCurrency }: { accounts: { id: st
             <li>AI-categorized: {summary.aiCategorized}</li>
             <li>Rows in file: {summary.rowCount}</li>
             {summary.errors.length > 0 ? (
-              <li className="text-amber-600">Rows skipped (parse errors): {summary.errors.length}</li>
+              <li className="text-amber-400">Rows skipped (parse errors): {summary.errors.length}</li>
             ) : null}
           </ul>
           <button type="button" onClick={reset} className="self-start rounded-md border px-4 py-2 text-sm">

@@ -73,14 +73,14 @@ export function InsightsView({ months, defaultPeriod }: { months: string[]; defa
           type="button"
           onClick={generate}
           disabled={loading}
-          className="bg-foreground text-background rounded-md px-4 py-2 text-sm disabled:opacity-50"
+          className="bg-primary text-primary-foreground rounded-md px-4 py-2 text-sm disabled:opacity-50"
         >
           {loading ? "Generating…" : data ? "Refresh" : "Generate insights"}
         </button>
         {data?.cached ? <span className="text-muted-foreground text-xs">cached</span> : null}
       </div>
 
-      {error ? <p className="text-sm text-red-600">{error}</p> : null}
+      {error ? <p className="text-sm text-red-400">{error}</p> : null}
 
       {!data && !loading && !error ? (
         <p className="text-muted-foreground text-sm">
@@ -111,7 +111,7 @@ export function InsightsView({ months, defaultPeriod }: { months: string[]; defa
                 </div>
                 <div className="flex justify-between">
                   <span>Income</span>
-                  <span className="text-emerald-600 font-medium">
+                  <span className="text-emerald-400 font-medium">
                     {formatMoneyMinor(stats.totalIncomeMinor, currency)}
                   </span>
                 </div>
@@ -151,7 +151,7 @@ export function InsightsView({ months, defaultPeriod }: { months: string[]; defa
                     .map((c) => (
                       <div key={c.category} className="flex justify-between">
                         <span>{c.category}</span>
-                        <span className={c.deltaPct >= 0 ? "text-red-600 font-medium" : "text-emerald-600 font-medium"}>
+                        <span className={c.deltaPct >= 0 ? "text-red-400 font-medium" : "text-emerald-400 font-medium"}>
                           {c.deltaPct >= 0 ? "+" : ""}
                           {c.deltaPct}%
                         </span>

@@ -82,7 +82,7 @@ export function AskPanel() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="bg-foreground text-background fixed right-6 bottom-6 z-40 flex items-center gap-2 rounded-full px-4 py-3 text-sm shadow-lg hover:opacity-90"
+        className="bg-primary text-primary-foreground fixed right-6 bottom-6 z-40 flex items-center gap-2 rounded-full px-4 py-3 text-sm shadow-lg hover:opacity-90"
         aria-label="Ask AI"
       >
         <Sparkles className="size-4" />
@@ -123,12 +123,12 @@ export function AskPanel() {
               <button
                 type="submit"
                 disabled={loading || !question.trim()}
-                className="bg-foreground text-background self-end rounded-md px-4 py-2 text-sm disabled:opacity-50"
+                className="bg-primary text-primary-foreground self-end rounded-md px-4 py-2 text-sm disabled:opacity-50"
               >
                 {loading ? "Thinking…" : "Ask"}
               </button>
             </form>
-            {error ? <p className="text-sm text-red-600">{error}</p> : null}
+            {error ? <p className="text-sm text-red-400">{error}</p> : null}
             {answer ? (
               <div className="bg-muted/30 rounded-md border p-4">
                 <Markdown>{answer}</Markdown>
