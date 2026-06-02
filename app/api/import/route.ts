@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAuthedUser } from "@/lib/api/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { importTooLarge, MAX_IMPORT_BYTES } from "@/lib/import/limits";
 import { getAnthropicClient } from "@/lib/ai/client";
 import { parseCsvBuffer } from "@/lib/csv/parse";
 import { headerSignature } from "@/lib/csv/profile";
@@ -32,6 +33,13 @@ export async function POST(request: Request) {
   const accountId = form.get("accountId");
   if (!(file instanceof File) || typeof accountId !== "string" || !accountId) {
     return NextResponse.json({ error: "'file' and 'accountId' are required" }, { status: 400 });
+  }
+
+  if (importTooLarge(file.size)) {
+    return NextResponse.json(
+      { error: `File too large. Maximum ${Math.round(MAX_IMPORT_BYTES / (1024 * 1024))} MB.` },
+      { status: 413 },
+    );
   }
 
   const buf = Buffer.from(await file.arrayBuffer());
