@@ -1,8 +1,9 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, describe, expect, it } from "vitest";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   createAccount,
   deleteAccount,
+  listAccounts,
   listAccountsWithCounts,
   renameAccount,
 } from "@/lib/repos/accounts";
@@ -16,6 +17,26 @@ afterEach(async () => {
     await db.from("accounts").delete().eq("id", id);
   }
 });
+
+// --- Original coverage (Phase 3): plain list/create round-trip ---
+
+let legacyId: string;
+
+afterAll(async () => {
+  if (legacyId) await db.from("accounts").delete().eq("id", legacyId);
+});
+
+describe.sequential("accounts repository (integration)", () => {
+  it("creates an account and lists it back", async () => {
+    legacyId = await createAccount(db, { name: "ITEST Revolut", currency: "EUR" });
+    const accounts = await listAccounts(db);
+    const mine = accounts.find((a) => a.id === legacyId);
+    expect(mine?.name).toBe("ITEST Revolut");
+    expect(mine?.currency).toBe("EUR");
+  });
+});
+
+// --- Phase 6C: counts, rename, guarded delete ---
 
 describe("accounts repo (integration)", () => {
   it("creates, lists with a zero count, renames", async () => {
