@@ -10,5 +10,10 @@ export default defineConfig({
     setupFiles: ["./vitest.setup.ts"],
     include: ["**/*.test.{ts,tsx}"],
     exclude: ["**/node_modules/**", "**/.next/**", ".worktrees/**"],
+    alias: {
+      // server-only throws in non-Next.js runtimes; no-op it in tests.
+      "server-only": new URL("./vitest.server-only-mock.ts", import.meta.url)
+        .pathname,
+    },
   },
 });
