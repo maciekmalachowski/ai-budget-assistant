@@ -23,6 +23,13 @@ export function AskPanel() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const inFlight = useRef(false);
+
+  const close = useCallback(() => {
+    setOpen(false);
+    setAnswer(null);
+    setError(null);
+  }, []);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -30,12 +37,12 @@ export function AskPanel() {
         e.preventDefault();
         setOpen(true);
       } else if (e.key === "Escape" && open) {
-        setOpen(false);
+        close();
       }
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [open]);
+  }, [open, close]);
 
   useEffect(() => {
     if (open) textareaRef.current?.focus();
@@ -43,7 +50,10 @@ export function AskPanel() {
 
   const submit = useCallback(async () => {
     const q = question.trim();
-    if (!q || loading) return;
+    // Guard synchronously via a ref: `loading` in a closure can be stale across
+    // two rapid Cmd/Ctrl+Enter presses, which would fire duplicate requests.
+    if (!q || inFlight.current) return;
+    inFlight.current = true;
     setLoading(true);
     setError(null);
     setAnswer(null);
@@ -63,8 +73,9 @@ export function AskPanel() {
       setError("Couldn't reach the server. Check your connection and try again.");
     } finally {
       setLoading(false);
+      inFlight.current = false;
     }
-  }, [question, loading]);
+  }, [question]);
 
   return (
     <>
@@ -80,11 +91,11 @@ export function AskPanel() {
 
       {open ? (
         <div className="fixed inset-0 z-50 flex justify-end" role="dialog" aria-modal="true" aria-label="Ask AI">
-          <div className="flex-1 bg-black/30" onClick={() => setOpen(false)} />
+          <div className="flex-1 bg-black/30" onClick={close} />
           <div className="bg-background flex h-full w-full max-w-md flex-col gap-4 overflow-y-auto border-l p-6 shadow-xl">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold">Ask about your money</h2>
-              <button type="button" onClick={() => setOpen(false)} aria-label="Close">
+              <button type="button" onClick={close} aria-label="Close">
                 <X className="size-5" />
               </button>
             </div>

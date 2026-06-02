@@ -41,7 +41,13 @@ export function CategoriesSection({ categories }: { categories: CategoryWithCoun
                 type="color"
                 defaultValue={c.color ?? "#888888"}
                 disabled={pending}
-                onChange={(e) => run(() => recolorCategoryAction({ id: c.id, color: e.target.value }))}
+                // Commit once when the picker closes — `onChange` fires on every drag tick,
+                // which would fire a DB write + revalidate per tick.
+                onBlur={(e) => {
+                  if (e.target.value !== (c.color ?? "#888888")) {
+                    run(() => recolorCategoryAction({ id: c.id, color: e.target.value }));
+                  }
+                }}
                 className="h-8 w-10 rounded border"
                 aria-label={`Color for ${c.name}`}
               />

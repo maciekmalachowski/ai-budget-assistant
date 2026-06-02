@@ -29,7 +29,7 @@ export function CategoryDonut({
                 <Cell key={i} fill={COLORS[i % COLORS.length]} />
               ))}
             </Pie>
-            <Tooltip formatter={(value) => (typeof value === "number" ? formatMoneyMinor(-value, currency) : value)} />
+            <Tooltip formatter={(value) => (typeof value === "number" ? formatMoneyMinor(-value, currency) : String(value))} />
           </PieChart>
         </ResponsiveContainer>
       </div>

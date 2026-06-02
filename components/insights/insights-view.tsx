@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Select } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Markdown } from "@/components/ui/markdown";
@@ -23,13 +23,19 @@ export function InsightsView({ months, defaultPeriod }: { months: string[]; defa
   const [data, setData] = useState<InsightResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Monotonic request id: a response is applied only if it's still the latest
+  // request. Changing the period (below) also bumps this so an in-flight fetch
+  // for the old month can't land against the new selection.
+  const reqId = useRef(0);
 
   async function generate() {
+    const id = ++reqId.current;
     setLoading(true);
     setError(null);
     try {
       const res = await fetch(`/api/insights?period=${period}`);
       const json = (await res.json()) as InsightResponse | { error: string };
+      if (id !== reqId.current) return; // superseded by a newer request / period change
       if (!res.ok || "error" in json) {
         setError(("error" in json && json.error) || "Could not generate insights.");
         setData(null);
@@ -37,9 +43,9 @@ export function InsightsView({ months, defaultPeriod }: { months: string[]; defa
         setData(json);
       }
     } catch {
-      setError("Couldn't reach the server. Try again.");
+      if (id === reqId.current) setError("Couldn't reach the server. Try again.");
     } finally {
-      setLoading(false);
+      if (id === reqId.current) setLoading(false);
     }
   }
 
@@ -52,6 +58,7 @@ export function InsightsView({ months, defaultPeriod }: { months: string[]; defa
         <Select
           value={period}
           onChange={(e) => {
+            reqId.current++; // invalidate any in-flight request for the old period
             setPeriod(e.target.value);
             setData(null);
           }}
