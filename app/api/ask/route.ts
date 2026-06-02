@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getAuthedUser } from "@/lib/api/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createReadonlyClient } from "@/lib/supabase/readonly";
 import { getAnthropicClient } from "@/lib/ai/client";
 import { answerQuestion } from "@/lib/ai/qa";
 import { createQueryTools } from "@/lib/queries/tools";
@@ -27,10 +28,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "A non-empty 'question' (<=1000 chars) is required" }, { status: 400 });
   }
 
-  const db = createAdminClient();
+  const readDb = createReadonlyClient();
+  const writeDb = createAdminClient();
   try {
-    const result = await answerQuestion(getAnthropicClient(), parsed.data.question, createQueryTools(db));
-    await logQa(db, { question: parsed.data.question, answerMd: result.answer, toolCalls: result.toolCalls });
+    const result = await answerQuestion(getAnthropicClient(), parsed.data.question, createQueryTools(readDb));
+    await logQa(writeDb, { question: parsed.data.question, answerMd: result.answer, toolCalls: result.toolCalls });
     return NextResponse.json(result);
   } catch {
     return NextResponse.json({ error: "Sorry, I couldn't answer that. Please try rephrasing." }, { status: 502 });
