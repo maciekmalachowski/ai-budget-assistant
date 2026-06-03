@@ -79,3 +79,57 @@ export function parseCsvBuffer(buf: Buffer, opts: ParseCsvBufferOptions = {}): P
   const { header, rows } = parseCsv(text, delimiter);
   return { header, rows, encoding, delimiter };
 }
+
+/** Stable synthetic key for the Nth (0-based) column of a headerless file. */
+export function columnKey(index: number): string {
+  return `Column ${index + 1}`;
+}
+
+/** Inverse of columnKey: "Column 6" → 5; -1 when the key is not synthetic. */
+export function columnIndex(key: string): number {
+  const m = /^Column (\d+)$/.exec(key);
+  return m ? Number(m[1]) - 1 : -1;
+}
+
+export interface CsvMatrix {
+  /** Max column count across all rows. */
+  columns: number;
+  /** Every row padded to `columns` cells (missing cells become ""). */
+  rows: string[][];
+}
+
+/** Parse decoded CSV text with no header row into a padded matrix of raw string cells. */
+export function parseCsvMatrix(text: string, delimiter: string): CsvMatrix {
+  const result = Papa.parse<string[]>(text, {
+    header: false,
+    delimiter,
+    skipEmptyLines: "greedy",
+  });
+  const data = (result.data ?? []).filter((r): r is string[] => Array.isArray(r));
+  const columns = data.reduce((max, r) => Math.max(max, r.length), 0);
+  const rows = data.map((r) => Array.from({ length: columns }, (_, i) => r[i] ?? ""));
+  return { columns, rows };
+}
+
+export interface ParseMatrixResult extends CsvMatrix {
+  encoding: SupportedEncoding;
+  delimiter: Delimiter;
+}
+
+/** Full headerless pipeline: detect/decode + detect delimiter + parse into a matrix. */
+export function parseCsvMatrixBuffer(buf: Buffer, opts: ParseCsvBufferOptions = {}): ParseMatrixResult {
+  const encoding = opts.encoding ?? detectEncoding(buf);
+  const text = decodeBuffer(buf, encoding);
+  const delimiter = opts.delimiter ?? detectDelimiter(text);
+  const { columns, rows } = parseCsvMatrix(text, delimiter);
+  return { columns, rows, encoding, delimiter };
+}
+
+/** Convert a (sliced) matrix into RawRow objects keyed by synthetic column keys. */
+export function matrixToRawRows(rows: string[][], columns: number): RawRow[] {
+  return rows.map((cells) => {
+    const row: RawRow = {};
+    for (let i = 0; i < columns; i++) row[columnKey(i)] = cells[i] ?? "";
+    return row;
+  });
+}

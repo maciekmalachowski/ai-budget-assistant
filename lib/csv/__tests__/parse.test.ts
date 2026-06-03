@@ -9,6 +9,10 @@ import {
   detectDelimiter,
   parseCsv,
   parseCsvBuffer,
+  columnKey,
+  columnIndex,
+  parseCsvMatrix,
+  matrixToRawRows,
 } from "@/lib/csv/parse";
 
 const sampleBuf = readFileSync(new URL("./fixtures/mbank-sample.csv", import.meta.url));
@@ -55,5 +59,38 @@ describe("parseCsv", () => {
   it("trims header names", () => {
     const { header } = parseCsv(" a ;b\n1;2", ";");
     expect(header).toEqual(["a", "b"]);
+  });
+});
+
+describe("columnKey / columnIndex", () => {
+  it("round-trips a 0-based index to a synthetic key", () => {
+    expect(columnKey(0)).toBe("Column 1");
+    expect(columnKey(5)).toBe("Column 6");
+    expect(columnIndex("Column 1")).toBe(0);
+    expect(columnIndex("Column 6")).toBe(5);
+  });
+  it("returns -1 for non-synthetic keys", () => {
+    expect(columnIndex("Kwota")).toBe(-1);
+  });
+});
+
+describe("parseCsvMatrix", () => {
+  it("parses headerless rows into a matrix padded to the max column count", () => {
+    const { columns, rows } = parseCsvMatrix("a,b,c\n1,2\n", ",");
+    expect(columns).toBe(3);
+    expect(rows).toEqual([
+      ["a", "b", "c"],
+      ["1", "2", ""],
+    ]);
+  });
+  it("keeps quoted values and skips blank lines", () => {
+    const { rows } = parseCsvMatrix('31-05-2026,"37,40"\n\n', ",");
+    expect(rows).toEqual([["31-05-2026", "37,40"]]);
+  });
+});
+
+describe("matrixToRawRows", () => {
+  it("keys each cell by its synthetic column", () => {
+    expect(matrixToRawRows([["x", "y"]], 2)).toEqual([{ "Column 1": "x", "Column 2": "y" }]);
   });
 });
