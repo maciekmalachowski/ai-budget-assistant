@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { importTooLarge, MAX_IMPORT_BYTES } from "@/lib/import/limits";
 import { getAnthropicClient } from "@/lib/ai/client";
 import { parseCsvMatrixBuffer, matrixToRawRows } from "@/lib/csv/parse";
+import type { Delimiter } from "@/lib/csv/parse";
 import { layoutSignature } from "@/lib/csv/profile";
 import { saveProfile } from "@/lib/repos/imports";
 import { runImport } from "@/lib/import/run";
@@ -15,6 +16,11 @@ export const dynamic = "force-dynamic";
 function readEncoding(form: FormData): SupportedEncoding | undefined {
   const raw = form.get("encoding");
   return raw === "utf-8" || raw === "win1250" ? raw : undefined;
+}
+
+function readDelimiter(form: FormData): Delimiter | undefined {
+  const raw = form.get("delimiter");
+  return raw === ";" || raw === "," || raw === "\t" ? raw : undefined;
 }
 
 /**
@@ -58,15 +64,26 @@ export async function POST(request: Request) {
   const startRow = typeof startRowRaw === "string" ? Math.max(0, parseInt(startRowRaw, 10) || 0) : 0;
 
   const buf = Buffer.from(await file.arrayBuffer());
-  const { columns, rows, delimiter, encoding } = parseCsvMatrixBuffer(buf, { encoding: readEncoding(form) });
+  const { columns, rows, delimiter, encoding } = parseCsvMatrixBuffer(buf, {
+    encoding: readEncoding(form),
+    delimiter: readDelimiter(form),
+  });
   const dataRows = matrixToRawRows(rows.slice(startRow), columns);
 
   const db = createAdminClient();
+
+  let summary;
   try {
-    const summary = await runImport(
+    summary = await runImport(
       { db, anthropic: getAnthropicClient() },
       { accountId, rows: dataRows, mapping, fileName: file.name },
     );
+  } catch {
+    return NextResponse.json({ error: "Import failed." }, { status: 500 });
+  }
+
+  // The layout profile is a convenience cache — a failed save must not fail a completed import.
+  try {
     await saveProfile(db, {
       headerSignature: layoutSignature(columns, delimiter),
       columnMapping: mapping,
@@ -75,8 +92,9 @@ export async function POST(request: Request) {
       decimalSep: mapping.decimalSep,
       encoding,
     });
-    return NextResponse.json({ status: "imported", ...summary });
   } catch {
-    return NextResponse.json({ error: "Import failed." }, { status: 500 });
+    // ignore: transactions are already imported
   }
+
+  return NextResponse.json({ status: "imported", ...summary });
 }

@@ -84,6 +84,7 @@ export function ImportWizard({
       form.set("mapping", JSON.stringify(mapping));
       form.set("startRow", String(startRow));
       form.set("encoding", preview.encoding);
+      form.set("delimiter", preview.delimiter);
       const res = await fetch("/api/import", { method: "POST", body: form });
       const data = (await res.json()) as ({ status: "imported" } & ImportSummary) | { error: string };
       if ("error" in data) {
