@@ -37,7 +37,9 @@ describe("guessMapping", () => {
     expect(m.dateFormat).toBe("DD-MM-YYYY");
     expect(m.amount).toEqual({ mode: "signed", amountColumn: "Column 6" });
     expect(m.decimalSep).toBe(",");
-    expect(m.descriptionColumns.length).toBeGreaterThan(0);
+    // The always-populated transaction text (col 3) must win over the sparse
+    // counterparty column (col 4), which holds one long value on only some rows.
+    expect(m.descriptionColumns).toEqual(["Column 3"]);
   });
 });
 

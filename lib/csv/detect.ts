@@ -104,17 +104,25 @@ export function guessAmountColumn(rows: string[][], columns: number, sep: "," | 
   return best ? best.index : null;
 }
 
-/** Longest mostly-text column (excluding given indices) → description. */
+/**
+ * Best mostly-text column (excluding given indices) → description. Scored by
+ * fill rate × average length, so the column populated on every row (the real
+ * description) beats a sparse column that happens to hold one long value (e.g. a
+ * counterparty name/address present on only some rows).
+ */
 export function guessDescriptionColumn(rows: string[][], columns: number, exclude: number[]): number | null {
-  let best: { index: number; avgLen: number } | null = null;
+  let best: { index: number; score: number } | null = null;
   for (let i = 0; i < columns; i++) {
     if (exclude.includes(i)) continue;
-    const present = nonEmpty(column(rows, i));
+    const cells = column(rows, i);
+    const present = nonEmpty(cells);
     if (present.length === 0) continue;
     const numericish = present.filter((c) => /^[\d\s.,+\-/]+$/.test(c)).length / present.length;
     if (numericish >= 0.5) continue;
+    const fillRate = present.length / cells.length;
     const avgLen = present.reduce((s, c) => s + c.trim().length, 0) / present.length;
-    if (best === null || avgLen > best.avgLen) best = { index: i, avgLen };
+    const score = fillRate * avgLen;
+    if (best === null || score > best.score) best = { index: i, score };
   }
   return best ? best.index : null;
 }
