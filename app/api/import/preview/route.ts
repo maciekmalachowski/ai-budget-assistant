@@ -5,7 +5,7 @@ import { importTooLarge, MAX_IMPORT_BYTES } from "@/lib/import/limits";
 import { parseCsvMatrixBuffer } from "@/lib/csv/parse";
 import { layoutSignature } from "@/lib/csv/profile";
 import { getProfileBySignature } from "@/lib/repos/imports";
-import { guessMapping, detectStartRow } from "@/lib/csv/detect";
+import { guessMapping, findStartRow } from "@/lib/csv/detect";
 import type { SupportedEncoding } from "@/lib/domain/types";
 
 export const runtime = "nodejs";
@@ -55,7 +55,7 @@ export async function POST(request: Request) {
   const db = createAdminClient();
   const profile = await getProfileBySignature(db, layoutSignature(columns, delimiter));
   const mapping = profile?.columnMapping ?? guessMapping(rows, columns, DEFAULT_CURRENCY);
-  const startRow = detectStartRow(rows, mapping);
+  const detectedRow = findStartRow(rows, mapping);
 
   return NextResponse.json({
     status: "preview",
@@ -64,7 +64,8 @@ export async function POST(request: Request) {
     totalRows: rows.length,
     encoding,
     delimiter,
-    guess: { startRow, mapping },
+    guess: { startRow: detectedRow ?? 0, mapping },
+    detected: detectedRow !== null,
     hasSavedProfile: profile !== null,
   });
 }

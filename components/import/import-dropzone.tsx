@@ -3,16 +3,24 @@
 import { useRef, useState, type DragEvent } from "react";
 import { Upload } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { MAX_IMPORT_BYTES } from "@/lib/import/limits";
 
 /** Drag-and-drop / click target that accepts a single .csv file (type-guarded). */
-export function ImportDropzone({ onFile, disabled }: { onFile: (file: File) => void; disabled?: boolean }) {
+export function ImportDropzone({ onFile, disabled, onError }: { onFile: (file: File) => void; disabled?: boolean; onError?: (message: string) => void }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
 
   function handleFiles(files: FileList | null) {
     const f = files?.[0];
     if (!f) return;
-    if (!/\.csv$/i.test(f.name) && f.type !== "text/csv") return;
+    if (!/\.csv$/i.test(f.name) && f.type !== "text/csv") {
+      onError?.("Please choose a .csv file.");
+      return;
+    }
+    if (f.size > MAX_IMPORT_BYTES) {
+      onError?.(`File too large. Maximum ${Math.round(MAX_IMPORT_BYTES / (1024 * 1024))} MB.`);
+      return;
+    }
     onFile(f);
   }
 

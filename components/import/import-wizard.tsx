@@ -21,6 +21,7 @@ interface PreviewData {
   encoding: SupportedEncoding;
   delimiter: string;
   guess: { startRow: number; mapping: ColumnMapping };
+  detected: boolean;
   hasSavedProfile: boolean;
 }
 
@@ -124,7 +125,7 @@ export function ImportWizard({
               ))}
             </Select>
           </label>
-          <ImportDropzone onFile={onFile} disabled={busy} />
+          <ImportDropzone onFile={onFile} disabled={busy} onError={setError} />
           {busy && <p className="text-sm text-muted-foreground">Reading file…</p>}
         </div>
       )}
@@ -139,6 +140,7 @@ export function ImportWizard({
           encoding={preview.encoding}
           defaultCurrency={defaultCurrency}
           busy={busy}
+          detected={preview.detected}
           onImport={doImport}
           onEncodingChange={changeEncoding}
           onBack={reset}

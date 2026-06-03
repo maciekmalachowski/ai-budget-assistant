@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import type { ColumnMapping, DateFormat, SupportedEncoding } from "@/lib/domain/types";
 import { Select } from "@/components/ui/select";
 import { buildMapping, mappingToRoles, type ColumnRole } from "@/lib/csv/roles";
@@ -26,13 +26,14 @@ export interface ImportPreviewProps {
   encoding: SupportedEncoding;
   defaultCurrency: string;
   busy: boolean;
+  detected: boolean;
   onImport: (mapping: ColumnMapping, startRow: number) => void;
   onEncodingChange: (encoding: SupportedEncoding) => void;
   onBack: () => void;
 }
 
 export function ImportPreview(props: ImportPreviewProps) {
-  const { columns, sampleRows, totalRows, initialMapping, initialStartRow, encoding, defaultCurrency, busy } = props;
+  const { columns, sampleRows, totalRows, initialMapping, initialStartRow, encoding, defaultCurrency, busy, detected } = props;
   const [roles, setRoles] = useState<Record<number, ColumnRole>>(() => mappingToRoles(initialMapping));
   const [dateFormat, setDateFormat] = useState<DateFormat>(initialMapping.dateFormat);
   const [decimalSep, setDecimalSep] = useState<"," | ".">(initialMapping.decimalSep);
@@ -112,20 +113,31 @@ export function ImportPreview(props: ImportPreviewProps) {
             {sampleRows.map((row, ri) => {
               const skipped = ri < startRow;
               return (
-                <tr
-                  key={ri}
-                  onClick={() => setStartRow(ri)}
-                  className={cn(
-                    "cursor-pointer border-t hover:bg-accent/50",
-                    skipped && "text-muted-foreground/50 line-through",
-                    ri === startRow && "bg-primary/5",
+                <Fragment key={ri}>
+                  {ri === startRow && startRow > 0 && (
+                    <tr aria-hidden>
+                      <td
+                        colSpan={columns + 1}
+                        className="border-t border-primary/40 bg-primary/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-primary"
+                      >
+                        Transactions start here
+                      </td>
+                    </tr>
                   )}
-                >
-                  <td className="px-2 py-1 text-center text-muted-foreground">{ri === startRow ? "▶" : ri + 1}</td>
-                  {Array.from({ length: columns }, (_, ci) => (
-                    <td key={ci} className="max-w-[12rem] truncate px-2 py-1">{row[ci] ?? ""}</td>
-                  ))}
-                </tr>
+                  <tr
+                    onClick={() => setStartRow(ri)}
+                    className={cn(
+                      "cursor-pointer border-t hover:bg-accent/50",
+                      skipped && "text-muted-foreground/50 line-through",
+                      ri === startRow && "bg-primary/5",
+                    )}
+                  >
+                    <td className="px-2 py-1 text-center text-muted-foreground">{ri === startRow ? "▶" : ri + 1}</td>
+                    {Array.from({ length: columns }, (_, ci) => (
+                      <td key={ci} className="max-w-[12rem] truncate px-2 py-1">{row[ci] ?? ""}</td>
+                    ))}
+                  </tr>
+                </Fragment>
               );
             })}
           </tbody>
@@ -135,6 +147,12 @@ export function ImportPreview(props: ImportPreviewProps) {
       <p className="text-xs text-muted-foreground">
         Showing {sampleRows.length} of {totalRows} rows · importing from row {startRow + 1} onward.
       </p>
+
+      {!detected && (
+        <p className="text-xs text-amber-400">
+          Couldn&apos;t auto-detect where transactions start — click the first real transaction row above.
+        </p>
+      )}
 
       {!mapping && (
         <p className="text-xs text-amber-400">

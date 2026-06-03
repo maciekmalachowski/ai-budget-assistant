@@ -137,12 +137,8 @@ export function guessMapping(rows: string[][], columns: number, defaultCurrency:
   };
 }
 
-/**
- * Index of the first row that parses as a transaction under `mapping` (its date
- * cell parses in the mapped format AND its amount cell parses). Returns 0 when no
- * row qualifies — the UI then prompts the user to pick the start row manually.
- */
-export function detectStartRow(rows: string[][], mapping: ColumnMapping): number {
+/** Like detectStartRow, but returns null when no row parses as a transaction. */
+export function findStartRow(rows: string[][], mapping: ColumnMapping): number | null {
   const dateIdx = columnIndex(mapping.dateColumn);
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i];
@@ -157,5 +153,14 @@ export function detectStartRow(rows: string[][], mapping: ColumnMapping): number
     }
     if (amountOk) return i;
   }
-  return 0;
+  return null;
+}
+
+/**
+ * Index of the first row that parses as a transaction under `mapping` (its date
+ * cell parses in the mapped format AND its amount cell parses). Returns 0 when no
+ * row qualifies — the UI then prompts the user to pick the start row manually.
+ */
+export function detectStartRow(rows: string[][], mapping: ColumnMapping): number {
+  return findStartRow(rows, mapping) ?? 0;
 }
