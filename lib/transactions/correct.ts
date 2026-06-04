@@ -6,8 +6,9 @@ import { upsertUserRule } from "@/lib/repos/merchantMap";
 /**
  * Apply a manual category correction: set the transaction to the chosen category
  * with source "user" (protected from future overwrite), and — when the row has a
- * merchant — learn a `contains` merchant_map rule so future imports of the same
- * merchant categorize automatically. Throws on an unknown category name.
+ * merchant — learn an `exact` merchant_map rule on the brand-level merchant so
+ * future imports of the same merchant categorize automatically. Throws on an
+ * unknown category name.
  */
 export async function applyCorrection(
   db: Db,
@@ -21,6 +22,6 @@ export async function applyCorrection(
 
   const pattern = (input.merchant ?? "").trim();
   if (pattern) {
-    await upsertUserRule(db, { pattern, matchType: "contains", categoryId });
+    await upsertUserRule(db, { pattern, matchType: "exact", categoryId });
   }
 }

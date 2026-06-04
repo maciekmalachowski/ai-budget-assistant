@@ -31,7 +31,7 @@ afterAll(async () => {
 });
 
 describe.sequential("applyCorrection (integration)", () => {
-  it("sets the transaction to user-sourced and learns a contains rule", async () => {
+  it("sets the transaction to user-sourced and learns an exact rule", async () => {
     const before = await listTransactions(db, { accountId: acctId });
     const txnId = before[0].id;
 
@@ -43,7 +43,7 @@ describe.sequential("applyCorrection (integration)", () => {
 
     const { data: rules } = await db.from("merchant_map").select("match_type, source, category_id").eq("pattern", MERCHANT);
     expect(rules).toHaveLength(1);
-    expect(rules?.[0].match_type).toBe("contains");
+    expect(rules?.[0].match_type).toBe("exact");
     expect(rules?.[0].source).toBe("user");
   });
 
