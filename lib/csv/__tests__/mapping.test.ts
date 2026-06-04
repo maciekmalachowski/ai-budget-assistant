@@ -109,4 +109,18 @@ describe("applyMapping with counterparty", () => {
     expect(f.counterparty).toBe("");
     expect(f.rawDescription).toBe("Przelew na telefon Od: 48604263864 Do: 485*****130");
   });
+
+  // Santander's first export row is a preamble (col 1 is YYYY-MM-DD, not DD-MM-YYYY; col 3 holds
+  // the own account number). Under the real DD-MM-YYYY mapping its date fails the format regex, so
+  // applyMapping throws — the pipeline collects it as a row error instead of importing a junk txn.
+  it("rejects the preamble row whose date is in the wrong format (preamble skip)", () => {
+    const preamble: RawRow = {
+      "Column 1": "2026-05-31", // YYYY-MM-DD — does not match DD-MM-YYYY
+      "Column 3": "08109025900000000141981663", // own account number, not a title
+      "Column 4": "",
+      "Column 5": "PLN",
+      "Column 6": "141",
+    };
+    expect(() => applyMapping(preamble, CP_MAPPING)).toThrow(/DD-MM-YYYY/);
+  });
 });

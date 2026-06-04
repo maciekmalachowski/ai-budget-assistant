@@ -123,4 +123,27 @@ describe("buildTransactionDrafts — Santander types", () => {
     expect(drafts[0].merchant).toBe("ALDI");
     expect(drafts[0].txnType).toBe("card");
   });
+
+  it("skips the Santander preamble row (wrong date format) as an error, still importing real rows", () => {
+    // Row 0 is the export's summary/preamble: col 1 in YYYY-MM-DD, col 3 = own account number.
+    const preamble: RawRow = {
+      "Column 1": "2026-05-31",
+      "Column 3": "08109025900000000141981663",
+      "Column 4": "",
+      "Column 5": "PLN",
+      "Column 6": "141",
+    };
+    const real = santanderRow("DOP. VISA 421352******0246 PŁATNOŚĆ KARTĄ 5.99 PLN ZABKA Z9241 K.1 GDANSK", "", "", "-5,99");
+    const { drafts, errors } = buildTransactionDrafts({
+      accountId: "acc-1",
+      rows: [preamble, real],
+      mapping: SANTANDER,
+      rules: [{ matchType: "contains", pattern: "ZABKA", categoryId: "groceries" }],
+    });
+    expect(errors).toHaveLength(1);
+    expect(errors[0].rowIndex).toBe(0); // the preamble
+    expect(drafts).toHaveLength(1); // only the real card row
+    expect(drafts[0].merchant).toContain("ZABKA");
+    expect(drafts[0].categoryId).toBe("groceries");
+  });
 });

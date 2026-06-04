@@ -42,6 +42,12 @@ describe("extractMerchant — transfer / internal", () => {
     expect(extractMerchant("transfer", "ZA KABABY", "MACIEJ IWANIUK UL.GORODZISKO 36 17-210 GORODZISKO")).toBe("Maciej Iwaniuk");
   });
 
+  it("preserves Polish diacritics while Title-Casing a person, stripping UL.+postcode+city (spec case)", () => {
+    expect(
+      extractMerchant("transfer", "Przelew", "MACIEJ MAŁACHOWSKI UL. KROKUSOWA 9 15-584 BIAŁYSTOK"),
+    ).toBe("Maciej Małachowski");
+  });
+
   it("strips a spelled-out legal form and address from a company", () => {
     expect(
       extractMerchant("transfer", "Umowa zlecenie kwiecień 2026", "AUTOMEE SPÓŁKA Z OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ ALEJA GRUNWALDZKA 472B 80-236 GDAŃSK ELIXIR 08-05-2026"),
