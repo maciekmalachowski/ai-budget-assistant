@@ -146,4 +146,31 @@ describe("buildTransactionDrafts — Santander types", () => {
     expect(drafts[0].merchant).toContain("ZABKA");
     expect(drafts[0].categoryId).toBe("groceries");
   });
+
+  it("does NOT brand-categorize a personal transfer whose payee collides with a seed keyword", () => {
+    // Payee "Agata Nowak" → merchant "Agata Nowak", note "kwiatki dla mamy". A Shopping brand
+    // rule on AGATA must NOT fire because the brand scan is scoped to the note for transfers.
+    const { drafts } = buildTransactionDrafts({
+      accountId: "acc-1",
+      rows: [santanderRow("kwiatki dla mamy", "AGATA NOWAK", "PL18 1020 1752 0000 0102 0167 4100", "-120,00")],
+      mapping: SANTANDER,
+      rules: [{ matchType: "contains", pattern: "AGATA", categoryId: "shopping" }],
+    });
+    expect(drafts[0].txnType).toBe("transfer");
+    expect(drafts[0].merchant).toBe("Agata Nowak");
+    expect(drafts[0].categoryId).toBeNull();
+    expect(drafts[0].categorySource).toBe("uncategorized");
+  });
+
+  it("still brand-categorizes a card row whose merchant matches a seed keyword", () => {
+    const { drafts } = buildTransactionDrafts({
+      accountId: "acc-1",
+      rows: [santanderRow("DOP. VISA 421352******0246 PŁATNOŚĆ KARTĄ 3.39 PLN ALDI SP. Z O.O. 06 GDANSK", "", "", "-3,39")],
+      mapping: SANTANDER,
+      rules: [{ matchType: "contains", pattern: "ALDI", categoryId: "groceries" }],
+    });
+    expect(drafts[0].txnType).toBe("card");
+    expect(drafts[0].categoryId).toBe("groceries");
+    expect(drafts[0].categorySource).toBe("rule");
+  });
 });

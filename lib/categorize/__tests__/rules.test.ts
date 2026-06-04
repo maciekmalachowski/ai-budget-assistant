@@ -38,3 +38,54 @@ describe("categorizeByRules", () => {
     expect(categorizeByRules("SHOPXCOM", "SHOPXCOM", r)).toBeNull();
   });
 });
+
+describe("categorizeByRules with opts.containsText", () => {
+  // Brand-only rules (no exact), to isolate the contains/regex scoping behavior.
+  const brandRules: MerchantRule[] = [
+    { matchType: "contains", pattern: "AGATA", categoryId: "shopping" },
+    { matchType: "regex", pattern: "APTEKA", categoryId: "health" },
+  ];
+
+  it("scopes 'contains' to containsText, not merchant/rawDescription", () => {
+    // The payee name "AGATA NOWAK" lives in merchant + rawDescription, but the note (containsText)
+    // is "KWIATKI DLA MAMY" — the AGATA brand rule must NOT fire.
+    expect(
+      categorizeByRules("KWIATKI DLA MAMY AGATA NOWAK", "AGATA NOWAK", brandRules, { containsText: "KWIATKI DLA MAMY" }),
+    ).toBeNull();
+    // When the brand IS in containsText, the contains rule fires.
+    expect(
+      categorizeByRules("AGATA MEBLE GDANSK", "AGATA", brandRules, { containsText: "AGATA MEBLE GDANSK" }),
+    ).toBe("shopping");
+  });
+
+  it("scopes 'regex' to containsText too", () => {
+    // "APTEKARSKA" appears in the payee/raw line but not in the note → regex must not match.
+    expect(
+      categorizeByRules("PRZELEW APTEKARSKA NOWAK", "APTEKARSKA NOWAK", brandRules, { containsText: "PRZELEW" }),
+    ).toBeNull();
+    expect(
+      categorizeByRules("ZAKUP APTEKA SLONECZNA", "APTEKA SLONECZNA", brandRules, { containsText: "ZAKUP APTEKA SLONECZNA" }),
+    ).toBe("health");
+  });
+
+  it("leaves 'exact' matching merchant/rawDescription regardless of opts", () => {
+    // A user/AI exact correction on the payee name must still stick even though the note differs.
+    const exactRules: MerchantRule[] = [
+      { matchType: "contains", pattern: "AGATA", categoryId: "shopping" },
+      { matchType: "exact", pattern: "AGATA NOWAK", categoryId: "user-fixed" },
+    ];
+    expect(
+      categorizeByRules("KWIATKI DLA MAMY", "AGATA NOWAK", exactRules, { containsText: "KWIATKI DLA MAMY" }),
+    ).toBe("user-fixed");
+  });
+
+  it("empty containsText disables contains/regex but keeps exact", () => {
+    const mixed: MerchantRule[] = [
+      { matchType: "contains", pattern: "AGATA", categoryId: "shopping" },
+      { matchType: "exact", pattern: "AGATA NOWAK", categoryId: "user-fixed" },
+    ];
+    expect(categorizeByRules("AGATA NOWAK", "AGATA NOWAK", mixed, { containsText: "" })).toBe("user-fixed");
+    const onlyBrand: MerchantRule[] = [{ matchType: "contains", pattern: "DINO", categoryId: "groceries" }];
+    expect(categorizeByRules("PRZELEW DINO KOWALSKI", "DINO KOWALSKI", onlyBrand, { containsText: "" })).toBeNull();
+  });
+});

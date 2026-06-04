@@ -59,7 +59,12 @@ export function buildTransactionDrafts(input: BuildDraftsInput): BuildDraftsResu
         occurrence,
       });
 
-      const categoryId = categorizeByRules(fields.rawDescription, merchant, input.rules);
+      // For person-to-person transfers the merchant IS the payee name and rawDescription embeds
+      // it, so brand-keyword `contains`/`regex` rules collide; scope those to the note (title).
+      const categoryId =
+        txnType === "transfer" || txnType === "internal"
+          ? categorizeByRules(fields.rawDescription, merchant, input.rules, { containsText: fields.title })
+          : categorizeByRules(fields.rawDescription, merchant, input.rules);
 
       drafts.push({
         bookedAt: fields.bookedAt,

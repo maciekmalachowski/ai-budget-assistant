@@ -46,7 +46,13 @@ export async function backfillMerchants(db: Db): Promise<BackfillResult> {
       if (merchant !== t.merchant) update.merchant = merchant;
 
       if (t.category_source !== "user") {
-        const categoryId = categorizeByRules(t.raw_description, merchant, rules);
+        // DB-only backfill has no separable note (just the stored line), so we can't safely scope
+        // brand-keyword rules for person transfers — disable them via containsText:"" to avoid
+        // payee/keyword collisions (e.g. "Agata Nowak" → Shopping). Exact rules still apply.
+        const categoryId =
+          txnType === "transfer" || txnType === "internal"
+            ? categorizeByRules(t.raw_description, merchant, rules, { containsText: "" })
+            : categorizeByRules(t.raw_description, merchant, rules);
         if (categoryId && categoryId !== t.category_id) {
           update.category_id = categoryId;
           update.category_source = "rule";
@@ -124,7 +130,12 @@ export async function enrichFromCsv(
 
     const update: TxUpdate = { raw_description: fields.rawDescription, merchant };
     if (existing.category_source !== "user") {
-      const categoryId = categorizeByRules(fields.rawDescription, merchant, rules);
+      // Scope brand-keyword rules to the note for person transfers, so a payee name that
+      // collides with a seed keyword (e.g. "Agata Nowak" vs AGATA) isn't mis-categorized.
+      const categoryId =
+        txnType === "transfer" || txnType === "internal"
+          ? categorizeByRules(fields.rawDescription, merchant, rules, { containsText: fields.title })
+          : categorizeByRules(fields.rawDescription, merchant, rules);
       if (categoryId) {
         update.category_id = categoryId;
         update.category_source = "rule";
