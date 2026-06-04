@@ -89,6 +89,10 @@ describe.sequential("backfillMerchants (integration)", () => {
     const eleclerc = rows.find((r) => r.rawDescription === CARD_ELECLERC)!;
     expect(eleclerc.merchant).toBe("ELECLERC");
     expect(eleclerc.categorySource).toBe("rule");
+    const aldi = rows.find((r) => r.rawDescription === CARD_ALDI)!;
+    expect(aldi.merchant).toBe("ALDI");
+    expect(aldi.category).toBe("Groceries");
+    expect(aldi.categorySource).toBe("user");
     expect(second.scanned).toBeGreaterThanOrEqual(2);
   }, 30000);
 });

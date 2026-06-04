@@ -1,7 +1,10 @@
 import type { Db } from "@/lib/supabase/admin";
+import type { Database } from "@/lib/supabase/database.types";
 import { extractMerchant } from "@/lib/domain/merchant";
 import { loadRules } from "@/lib/repos/merchantMap";
 import { categorizeByRules } from "@/lib/categorize/rules";
+
+type TxUpdate = Database["public"]["Tables"]["transactions"]["Update"];
 
 export interface BackfillResult {
   scanned: number;
@@ -34,7 +37,7 @@ export async function backfillMerchants(db: Db): Promise<BackfillResult> {
     for (const t of rows) {
       result.scanned++;
       const merchant = extractMerchant(t.raw_description);
-      const update: Record<string, unknown> = {};
+      const update: Partial<TxUpdate> = {};
       if (merchant !== t.merchant) update.merchant = merchant;
 
       if (t.category_source !== "user") {
