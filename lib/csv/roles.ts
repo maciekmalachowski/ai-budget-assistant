@@ -1,7 +1,16 @@
 import type { ColumnMapping, DateFormat } from "@/lib/domain/types";
 import { columnKey, columnIndex } from "@/lib/csv/parse";
 
-export type ColumnRole = "ignore" | "date" | "description" | "amount" | "debit" | "credit" | "currency";
+export type ColumnRole =
+  | "ignore"
+  | "date"
+  | "description"
+  | "amount"
+  | "debit"
+  | "credit"
+  | "currency"
+  | "counterparty"
+  | "counterpartyAccount";
 
 export interface MappingDraft {
   /** Role chosen per column index (0-based); absent columns are treated as "ignore". */
@@ -35,6 +44,8 @@ export function buildMapping(draft: MappingDraft): ColumnMapping | null {
   const debitIdx = firstWithRole(draft.roles, "debit");
   const creditIdx = firstWithRole(draft.roles, "credit");
   const currencyIdx = firstWithRole(draft.roles, "currency");
+  const counterpartyIdx = firstWithRole(draft.roles, "counterparty");
+  const counterpartyAccountIdx = firstWithRole(draft.roles, "counterpartyAccount");
 
   if (dateIdx === null || descIdx.length === 0) return null;
 
@@ -54,6 +65,8 @@ export function buildMapping(draft: MappingDraft): ColumnMapping | null {
     amount,
     decimalSep: draft.decimalSep,
     currencyColumn: currencyIdx !== null ? columnKey(currencyIdx) : undefined,
+    counterpartyColumn: counterpartyIdx !== null ? columnKey(counterpartyIdx) : undefined,
+    counterpartyAccountColumn: counterpartyAccountIdx !== null ? columnKey(counterpartyAccountIdx) : undefined,
     defaultCurrency: draft.defaultCurrency,
   };
 }
@@ -74,5 +87,7 @@ export function mappingToRoles(mapping: ColumnMapping): Record<number, ColumnRol
     set(mapping.amount.creditColumn, "credit");
   }
   if (mapping.currencyColumn) set(mapping.currencyColumn, "currency");
+  if (mapping.counterpartyColumn) set(mapping.counterpartyColumn, "counterparty");
+  if (mapping.counterpartyAccountColumn) set(mapping.counterpartyAccountColumn, "counterpartyAccount");
   return roles;
 }

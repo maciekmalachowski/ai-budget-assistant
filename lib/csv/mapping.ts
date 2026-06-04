@@ -24,8 +24,18 @@ export function applyMapping(row: RawRow, mapping: ColumnMapping): MappedFields 
     );
   }
 
-  const rawDescription = mapping.descriptionColumns
+  const title = mapping.descriptionColumns
     .map((c) => requireColumn(row, c).trim())
+    .filter((v) => v !== "")
+    .join(" ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  const optional = (col?: string): string => (col ? (row[col] ?? "").trim() : "");
+  const counterparty = optional(mapping.counterpartyColumn);
+  const counterpartyAccount = optional(mapping.counterpartyAccountColumn);
+
+  const rawDescription = [title, counterparty, counterpartyAccount]
     .filter((v) => v !== "")
     .join(" ")
     .replace(/\s+/g, " ")
@@ -35,5 +45,5 @@ export function applyMapping(row: RawRow, mapping: ColumnMapping): MappedFields 
     ? requireColumn(row, mapping.currencyColumn).trim() || mapping.defaultCurrency
     : mapping.defaultCurrency;
 
-  return { bookedAt, amountMinor, currency, rawDescription };
+  return { bookedAt, amountMinor, currency, title, counterparty, rawDescription };
 }

@@ -35,6 +35,30 @@ describe("buildMapping", () => {
   });
 });
 
+describe("buildMapping — counterparty roles", () => {
+  it("maps counterparty + counterparty-account columns", () => {
+    const m = buildMapping({
+      roles: { 0: "date", 2: "description", 3: "counterparty", 4: "counterpartyAccount", 5: "amount" },
+      dateFormat: "DD-MM-YYYY",
+      decimalSep: ",",
+      defaultCurrency: "PLN",
+    });
+    expect(m).not.toBeNull();
+    expect(m!.counterpartyColumn).toBe("Column 4");
+    expect(m!.counterpartyAccountColumn).toBe("Column 5");
+  });
+
+  it("round-trips through mappingToRoles", () => {
+    const m = buildMapping({
+      roles: { 0: "date", 2: "description", 3: "counterparty", 5: "amount" },
+      dateFormat: "DD-MM-YYYY",
+      decimalSep: ",",
+      defaultCurrency: "PLN",
+    })!;
+    expect(mappingToRoles(m)[3]).toBe("counterparty");
+  });
+});
+
 describe("mappingToRoles", () => {
   it("inverts a signed mapping back to per-column roles", () => {
     const mapping: ColumnMapping = {
