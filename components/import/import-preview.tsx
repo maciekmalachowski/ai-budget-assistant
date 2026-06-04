@@ -11,6 +11,8 @@ const ROLES: { value: ColumnRole; label: string }[] = [
   { value: "ignore", label: "Ignore" },
   { value: "date", label: "Date" },
   { value: "description", label: "Description" },
+  { value: "counterparty", label: "Counterparty" },
+  { value: "counterpartyAccount", label: "Counterparty account" },
   { value: "amount", label: "Amount" },
   { value: "debit", label: "Debit" },
   { value: "credit", label: "Credit" },
@@ -85,8 +87,9 @@ export function ImportPreview(props: ImportPreviewProps) {
       </div>
 
       <p className="text-xs text-muted-foreground">
-        Each column&apos;s dropdown sets its role. Click a row to mark where transactions start — rows above it
-        (account info, headers) are skipped.
+        Each column&apos;s dropdown sets its role. For transfers, set the payee column to
+        <strong> Counterparty</strong> so names aren&apos;t lost. Click a row to mark where transactions
+        start — rows above it (account info, headers) are skipped.
       </p>
 
       <div className="overflow-x-auto rounded-lg border">
