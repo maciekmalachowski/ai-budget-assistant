@@ -1,17 +1,5 @@
 import { createHash } from "node:crypto";
 
-/** Derive a clean, display-friendly merchant name from a raw bank description. */
-export function normalizeMerchant(rawDescription: string): string {
-  return rawDescription
-    .toUpperCase()
-    .replace(/\s+/g, " ")
-    .trim()
-    .split(" ")
-    .filter((tok) => tok !== "" && !/^\d{4,}$/.test(tok))
-    .join(" ")
-    .trim();
-}
-
 /** Whitespace/case-insensitive canonical form of a description, for stable hashing. */
 export function canonicalizeForHash(rawDescription: string): string {
   return rawDescription.toUpperCase().replace(/\s+/g, " ").trim();

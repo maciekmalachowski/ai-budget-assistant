@@ -6,7 +6,8 @@ import type {
   TransactionDraft,
 } from "@/lib/domain/types";
 import { applyMapping } from "@/lib/csv/mapping";
-import { normalizeMerchant, computeDedupHash, canonicalizeForHash } from "@/lib/domain/normalize";
+import { computeDedupHash, canonicalizeForHash } from "@/lib/domain/normalize";
+import { extractMerchant } from "@/lib/domain/merchant";
 import { categorizeByRules } from "@/lib/categorize/rules";
 
 export interface BuildDraftsInput {
@@ -35,7 +36,7 @@ export function buildTransactionDrafts(input: BuildDraftsInput): BuildDraftsResu
   input.rows.forEach((row, rowIndex) => {
     try {
       const fields = applyMapping(row, input.mapping);
-      const merchant = normalizeMerchant(fields.rawDescription);
+      const merchant = extractMerchant(fields.rawDescription);
 
       const baseKey = JSON.stringify([
         input.accountId,

@@ -1,18 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { normalizeMerchant, computeDedupHash } from "@/lib/domain/normalize";
-
-describe("normalizeMerchant", () => {
-  it("uppercases, collapses whitespace, and drops long digit tokens", () => {
-    expect(normalizeMerchant("Biedronka 1234 Warszawa")).toBe("BIEDRONKA WARSZAWA");
-    expect(normalizeMerchant("  uber   *trip ")).toBe("UBER *TRIP");
-  });
-  it("keeps short digit tokens (they may be meaningful)", () => {
-    expect(normalizeMerchant("Sklep 12")).toBe("SKLEP 12");
-  });
-  it("returns an empty string for empty input", () => {
-    expect(normalizeMerchant("")).toBe("");
-  });
-});
+import { computeDedupHash } from "@/lib/domain/normalize";
 
 describe("computeDedupHash", () => {
   const base = {

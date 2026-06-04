@@ -66,4 +66,17 @@ describe("buildTransactionDrafts", () => {
     expect(drafts).toHaveLength(2);
     expect(drafts[0].dedupHash).not.toBe(drafts[1].dedupHash);
   });
+
+  it("extracts the brand merchant from a card-payment description", () => {
+    const rows = [
+      {
+        "Data operacji": "31.05.2026",
+        "Opis operacji": "DOP. VISA 421352******0246 PŁATNOŚĆ KARTĄ 12.48 PLN eLeclerc 01 Gdansk",
+        "Kwota": "-12,48",
+      },
+    ];
+    const { drafts } = buildTransactionDrafts({ accountId: "acc-1", rows, mapping, rules });
+    expect(drafts).toHaveLength(1);
+    expect(drafts[0].merchant).toBe("ELECLERC");
+  });
 });
