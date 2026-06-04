@@ -4,7 +4,7 @@ import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { buildTransactionDrafts } from "@/lib/import/pipeline";
 import { parseCsvBuffer } from "@/lib/csv/parse";
-import type { ColumnMapping, MerchantRule } from "@/lib/domain/types";
+import type { ColumnMapping, MerchantRule, RawRow } from "@/lib/domain/types";
 
 const mapping: ColumnMapping = {
   dateColumn: "Data operacji",
@@ -78,5 +78,49 @@ describe("buildTransactionDrafts", () => {
     const { drafts } = buildTransactionDrafts({ accountId: "acc-1", rows, mapping, rules });
     expect(drafts).toHaveLength(1);
     expect(drafts[0].merchant).toBe("ELECLERC");
+  });
+});
+
+const SANTANDER: ColumnMapping = {
+  dateColumn: "Column 1",
+  dateFormat: "DD-MM-YYYY",
+  descriptionColumns: ["Column 3"],
+  counterpartyColumn: "Column 4",
+  counterpartyAccountColumn: "Column 5",
+  amount: { mode: "signed", amountColumn: "Column 6" },
+  decimalSep: ",",
+  defaultCurrency: "PLN",
+};
+
+const santanderRow = (c3: string, c4: string, c5: string, c6: string): RawRow => ({
+  "Column 1": "31-05-2026",
+  "Column 3": c3,
+  "Column 4": c4,
+  "Column 5": c5,
+  "Column 6": c6,
+});
+
+describe("buildTransactionDrafts — Santander types", () => {
+  it("recovers the payee name and tags the type for a phone transfer", () => {
+    const { drafts } = buildTransactionDrafts({
+      accountId: "acc-1",
+      rows: [santanderRow("Przelew na telefon Od: 48604263864 Do: 485*****130", "JULIA ZAKRZEWSKA", "PL18 1020 1752 0000 0102 0167 4100", "70,00")],
+      mapping: SANTANDER,
+      rules: [],
+    });
+    expect(drafts[0].merchant).toBe("Julia Zakrzewska");
+    expect(drafts[0].txnType).toBe("transfer");
+    expect(drafts[0].rawDescription).toContain("JULIA ZAKRZEWSKA");
+  });
+
+  it("extracts the brand and tags 'card' for a card payment", () => {
+    const { drafts } = buildTransactionDrafts({
+      accountId: "acc-1",
+      rows: [santanderRow("DOP. VISA 421352******0246 PŁATNOŚĆ KARTĄ 3.39 PLN ALDI SP. Z O.O. 06 GDANSK", "", "", "-3,39")],
+      mapping: SANTANDER,
+      rules: [],
+    });
+    expect(drafts[0].merchant).toBe("ALDI");
+    expect(drafts[0].txnType).toBe("card");
   });
 });

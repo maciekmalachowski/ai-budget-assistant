@@ -8,6 +8,7 @@ import type {
 import { applyMapping } from "@/lib/csv/mapping";
 import { computeDedupHash, canonicalizeForHash } from "@/lib/domain/normalize";
 import { extractMerchant } from "@/lib/domain/merchant";
+import { classifyTransaction } from "@/lib/domain/txnType";
 import { categorizeByRules } from "@/lib/categorize/rules";
 
 export interface BuildDraftsInput {
@@ -36,13 +37,16 @@ export function buildTransactionDrafts(input: BuildDraftsInput): BuildDraftsResu
   input.rows.forEach((row, rowIndex) => {
     try {
       const fields = applyMapping(row, input.mapping);
-      const merchant = extractMerchant(fields.rawDescription);
+      const txnType = classifyTransaction(fields.title, fields.counterparty);
+      const merchant = extractMerchant(txnType, fields.title, fields.counterparty);
 
+      // Dedup hash is built from the TITLE (not the enriched rawDescription) to stay stable
+      // across the extraction change and avoid duplicate explosions on re-import.
       const baseKey = JSON.stringify([
         input.accountId,
         fields.bookedAt,
         fields.amountMinor,
-        canonicalizeForHash(fields.rawDescription),
+        canonicalizeForHash(fields.title),
       ]);
       const occurrence = occurrenceCounts.get(baseKey) ?? 0;
       occurrenceCounts.set(baseKey, occurrence + 1);
@@ -51,7 +55,7 @@ export function buildTransactionDrafts(input: BuildDraftsInput): BuildDraftsResu
         accountId: input.accountId,
         bookedAt: fields.bookedAt,
         amountMinor: fields.amountMinor,
-        rawDescription: fields.rawDescription,
+        rawDescription: fields.title,
         occurrence,
       });
 
@@ -63,6 +67,7 @@ export function buildTransactionDrafts(input: BuildDraftsInput): BuildDraftsResu
         currency: fields.currency,
         rawDescription: fields.rawDescription,
         merchant,
+        txnType,
         dedupHash,
         categoryId,
         categorySource: categoryId ? "rule" : "uncategorized",
