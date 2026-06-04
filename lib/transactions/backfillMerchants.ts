@@ -1,6 +1,10 @@
 import type { Db } from "@/lib/supabase/admin";
 import type { Database } from "@/lib/supabase/database.types";
+import type { ColumnMapping, RawRow } from "@/lib/domain/types";
 import { extractMerchant } from "@/lib/domain/merchant";
+import { classifyTransaction } from "@/lib/domain/txnType";
+import { applyMapping } from "@/lib/csv/mapping";
+import { computeDedupHash, canonicalizeForHash } from "@/lib/domain/normalize";
 import { loadRules } from "@/lib/repos/merchantMap";
 import { categorizeByRules } from "@/lib/categorize/rules";
 
@@ -36,7 +40,8 @@ export async function backfillMerchants(db: Db): Promise<BackfillResult> {
 
     for (const t of rows) {
       result.scanned++;
-      const merchant = extractMerchant(t.raw_description);
+      const txnType = classifyTransaction(t.raw_description, "");
+      const merchant = extractMerchant(txnType, t.raw_description, "");
       const update: Partial<TxUpdate> = {};
       if (merchant !== t.merchant) update.merchant = merchant;
 
@@ -60,5 +65,75 @@ export async function backfillMerchants(db: Db): Promise<BackfillResult> {
     if (rows.length < PAGE) break;
   }
 
+  return result;
+}
+
+export interface EnrichResult {
+  matched: number;
+  updated: number;
+  unmatched: number;
+}
+
+/**
+ * Recover counterparty names for ALREADY-IMPORTED rows from the original CSV without creating
+ * duplicates. For each CSV row we recompute the (title-based) dedup hash exactly as the importer
+ * does, find the existing transaction by (account_id, dedup_hash), and update its raw_description
+ * + merchant — and its category when the row was not user-corrected. Idempotent.
+ */
+export async function enrichFromCsv(
+  db: Db,
+  input: { accountId: string; rows: RawRow[]; mapping: ColumnMapping },
+): Promise<EnrichResult> {
+  const rules = await loadRules(db);
+  const result: EnrichResult = { matched: 0, updated: 0, unmatched: 0 };
+  const occurrence = new Map<string, number>();
+
+  for (const row of input.rows) {
+    let fields;
+    try {
+      fields = applyMapping(row, input.mapping);
+    } catch {
+      continue; // skip unparseable rows (e.g. the preamble)
+    }
+    const txnType = classifyTransaction(fields.title, fields.counterparty);
+    const merchant = extractMerchant(txnType, fields.title, fields.counterparty);
+
+    const baseKey = JSON.stringify([input.accountId, fields.bookedAt, fields.amountMinor, canonicalizeForHash(fields.title)]);
+    const occ = occurrence.get(baseKey) ?? 0;
+    occurrence.set(baseKey, occ + 1);
+    const dedupHash = computeDedupHash({
+      accountId: input.accountId,
+      bookedAt: fields.bookedAt,
+      amountMinor: fields.amountMinor,
+      rawDescription: fields.title,
+      occurrence: occ,
+    });
+
+    const { data: existing, error } = await db
+      .from("transactions")
+      .select("id, category_id, category_source")
+      .eq("account_id", input.accountId)
+      .eq("dedup_hash", dedupHash)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!existing) {
+      result.unmatched++;
+      continue;
+    }
+    result.matched++;
+
+    const update: TxUpdate = { raw_description: fields.rawDescription, merchant };
+    if (existing.category_source !== "user") {
+      const categoryId = categorizeByRules(fields.rawDescription, merchant, rules);
+      if (categoryId) {
+        update.category_id = categoryId;
+        update.category_source = "rule";
+        update.ai_confidence = null;
+      }
+    }
+    const { error: upErr } = await db.from("transactions").update(update).eq("id", existing.id);
+    if (upErr) throw new Error(upErr.message);
+    result.updated++;
+  }
   return result;
 }
