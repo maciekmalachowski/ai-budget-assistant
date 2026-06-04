@@ -12,6 +12,9 @@ export type SupportedEncoding = "utf-8" | "win1250";
 /** How a transaction's category was decided. */
 export type CategorySource = "rule" | "ai" | "user" | "uncategorized";
 
+/** Coarse transaction type, inferred from the row, that drives merchant extraction. */
+export type TxnType = "card" | "blik" | "transfer" | "internal" | "fee";
+
 /** A parsed CSV row keyed by (trimmed) header name. */
 export type RawRow = Record<string, string>;
 
@@ -30,6 +33,10 @@ export interface ColumnMapping {
   decimalSep: "," | ".";
   /** Optional currency column; falls back to defaultCurrency when absent/empty. */
   currencyColumn?: string;
+  /** Optional counterparty (payee) name column — used for transfers and BLIK. */
+  counterpartyColumn?: string;
+  /** Optional counterparty bank-account column. */
+  counterpartyAccountColumn?: string;
   defaultCurrency: string;
 }
 
@@ -40,6 +47,11 @@ export interface MappedFields {
   /** Signed integer minor units (negative = outflow, positive = inflow). */
   amountMinor: number;
   currency: string;
+  /** The title/note column(s) joined — the dedup-hash basis (kept stable). */
+  title: string;
+  /** Counterparty (payee) name, or "" when not mapped. */
+  counterparty: string;
+  /** Full reconstructed line (title + counterparty + account) for display/search. */
   rawDescription: string;
 }
 
@@ -57,6 +69,8 @@ export interface TransactionDraft {
   currency: string;
   rawDescription: string;
   merchant: string;
+  /** Transient: drives AI-rule learning; not persisted to the DB. */
+  txnType?: TxnType;
   dedupHash: string;
   categoryId: string | null;
   categorySource: CategorySource;
