@@ -1,5 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getDashboardData } from "@/lib/dashboard/data";
+import { listCategories } from "@/lib/repos/categories";
 import { KpiCards } from "@/components/dashboard/kpi-cards";
 import { RecentTransactions } from "@/components/dashboard/recent-transactions";
 import { CategoryDonut } from "@/components/charts/category-donut";
@@ -11,7 +12,13 @@ export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
   const db = createAdminClient();
-  const data = await getDashboardData(db, { month: currentMonth() });
+  const [data, categories] = await Promise.all([
+    getDashboardData(db, { month: currentMonth() }),
+    listCategories(db),
+  ]);
+  const colorByName = Object.fromEntries(
+    categories.map((c) => [c.name, c.color]),
+  ) as Record<string, string | null>;
 
   return (
     <div className="flex flex-col gap-6">
@@ -30,7 +37,7 @@ export default async function DashboardPage() {
             <CardTitle>Spending by category</CardTitle>
           </CardHeader>
           <CardContent>
-            <CategoryDonut data={data.byCategory} currency={data.currency} />
+            <CategoryDonut data={data.byCategory} currency={data.currency} colorByName={colorByName} />
           </CardContent>
         </Card>
 
