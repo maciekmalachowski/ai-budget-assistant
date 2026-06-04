@@ -23,12 +23,15 @@ export default async function TransactionsPage({
     listCategories(db),
   ]);
   const categoryNames = categories.map((c) => c.name);
+  const categoryColors = Object.fromEntries(
+    categories.map((c) => [c.name, c.color]),
+  ) as Record<string, string | null>;
 
   return (
     <div className="flex flex-col gap-6">
       <h1 className="text-2xl font-semibold">Transactions</h1>
       <TransactionsFilters categories={categoryNames} />
-      <TransactionsTable rows={rows} categories={categoryNames} />
+      <TransactionsTable rows={rows} categories={categoryNames} categoryColors={categoryColors} />
     </div>
   );
 }
