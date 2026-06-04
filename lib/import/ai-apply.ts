@@ -4,6 +4,9 @@ import type { CategorySuggestion } from "@/lib/ai/categorize";
 /** Minimum model confidence to auto-apply an AI category; below this a row stays "needs review". */
 export const AI_CONFIDENCE_THRESHOLD = 0.6;
 
+/** Minimum confidence to PERSIST an AI guess as a reusable rule (stricter than auto-apply). */
+export const AI_LEARN_THRESHOLD = 0.8;
+
 /**
  * Apply AI category suggestions to uncategorized drafts (pure). Drafts already
  * categorized by a rule are returned unchanged. For each uncategorized draft we

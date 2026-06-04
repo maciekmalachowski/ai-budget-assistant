@@ -27,9 +27,13 @@ const SuggestionSchema = z.object({
   ),
 });
 
-const SYSTEM = `You categorize bank transactions into a fixed set of spending categories.
-For each transaction, choose exactly one category from the taxonomy, or "Unknown" if you are not reasonably sure.
-"confidence" is your certainty from 0 to 1.
+const SYSTEM = `You categorize Polish bank transactions into a fixed set of spending categories.
+For each transaction choose exactly one category from the taxonomy, or "Unknown" if not reasonably sure.
+Use ALL fields: "merchant" is the payee (a shop brand or a person's name), "description" is the full
+bank line (it often contains a human note like a rent or gift purpose), and "amountMinor" is signed —
+negative means money out (an expense), positive means money in (income or an incoming transfer).
+Person-to-person transfers are usually "Transfer" unless the note clearly indicates otherwise
+(e.g. rent → Housing, salary → Income). "confidence" is your certainty from 0 to 1.
 Respond with ONLY a JSON object of the form {"results":[{"id":string,"category":string,"confidence":number}]} and nothing else — no prose, no code fences.`;
 
 /** Strip a Markdown code fence if the model wrapped its JSON in one. */

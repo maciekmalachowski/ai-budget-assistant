@@ -1,10 +1,10 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import type { Db } from "@/lib/supabase/admin";
-import type { ColumnMapping, RawRow } from "@/lib/domain/types";
+import type { ColumnMapping, RawRow, TransactionDraft } from "@/lib/domain/types";
 import { buildTransactionDrafts } from "@/lib/import/pipeline";
-import { applyAiCategories } from "@/lib/import/ai-apply";
+import { applyAiCategories, AI_LEARN_THRESHOLD } from "@/lib/import/ai-apply";
 import { categorizeWithAI, type CategorizationItem, type CategorySuggestion } from "@/lib/ai/categorize";
-import { loadRules } from "@/lib/repos/merchantMap";
+import { loadRules, insertAiRuleIfAbsent } from "@/lib/repos/merchantMap";
 import { getTaxonomy, getCategoryNameToId } from "@/lib/repos/categories";
 import { insertDrafts } from "@/lib/repos/transactions";
 import { createImportBatch, finalizeImportBatch } from "@/lib/repos/imports";
@@ -23,6 +23,28 @@ export interface ImportSummary {
   duplicates: number;
   aiCategorized: number;
   errors: { rowIndex: number; message: string }[];
+}
+
+/**
+ * Decide which confident AI suggestions deserve a remembered rule. Only real merchants
+ * (card/blik) qualify — person-to-person transfers vary per transaction, so learning a
+ * per-person rule would be wrong. Returns one `exact` rule per distinct eligible merchant.
+ */
+export function learnableRules(
+  drafts: TransactionDraft[],
+  suggestionByMerchant: Map<string, CategorySuggestion>,
+  nameToId: Map<string, string>,
+): { pattern: string; matchType: "exact"; categoryId: string }[] {
+  const out = new Map<string, { pattern: string; matchType: "exact"; categoryId: string }>();
+  for (const d of drafts) {
+    if (!d.merchant || (d.txnType !== "card" && d.txnType !== "blik")) continue;
+    const sugg = suggestionByMerchant.get(d.merchant);
+    if (!sugg || sugg.confidence < AI_LEARN_THRESHOLD) continue;
+    const categoryId = nameToId.get(sugg.category);
+    if (!categoryId) continue;
+    out.set(d.merchant, { pattern: d.merchant, matchType: "exact", categoryId });
+  }
+  return [...out.values()];
 }
 
 /**
@@ -75,6 +97,15 @@ export async function runImport(deps: { db: Db; anthropic: Anthropic }, input: R
       const byMerchant = new Map(suggestions.map((s) => [s.id, s]));
       categorized = applyAiCategories(drafts, byMerchant, nameToId);
       aiCategorized = categorized.filter((d) => d.categorySource === "ai").length;
+
+      // Remember confident merchant categorizations so future imports skip the AI.
+      try {
+        for (const rule of learnableRules(categorized, byMerchant, nameToId)) {
+          await insertAiRuleIfAbsent(db, rule);
+        }
+      } catch {
+        // best-effort: a failed rule write must not fail the import
+      }
     }
 
     const { inserted, duplicates } = await insertDrafts(db, input.accountId, batchId, categorized);
