@@ -1,3 +1,8 @@
+/**
+ * Pure helpers (no I/O) for deriving a clean, brand-level merchant name from a raw
+ * bank-statement description — tuned for noisy Polish card-payment lines.
+ */
+
 /** Returns the merchant portion of a raw description, or null if the extractor doesn't apply. */
 type MerchantExtractor = (raw: string) => string | null;
 
@@ -29,7 +34,7 @@ const EXTRACTORS: MerchantExtractor[] = [cardExtractor, genericExtractor];
 const LEGAL_SUFFIX =
   /\bSP\.?\s*Z\s*O\.?\s*O\.?\b|\bS\.?\s*A\.?\b|\bSP\.?\s*J\.?\b|\bSP\.?\s*K\.?\b/giu;
 /** A trailing "<1-3 digit store#> <CITY/word>" at the end of the name. */
-const TRAILING_STORE_CITY = /\s+\d{1,3}\s+[\p{L}][\p{L}.\-]*$/u;
+const TRAILING_STORE_CITY = /\s+\d{1,3}\s+[\p{L}][\p{L}.-]*$/u;
 
 /** Collapse an extracted name to its brand: uppercase, drop legal suffixes + trailing store#/city. */
 export function brandNormalize(name: string): string {

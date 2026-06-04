@@ -54,4 +54,8 @@ describe("brandNormalize", () => {
   it("falls back to the input when stripping would empty the string", () => {
     expect(brandNormalize("01 GDANSK")).toBe("01 GDANSK");
   });
+
+  it("falls back to the input for a legal-suffix-only name", () => {
+    expect(brandNormalize("S.A.")).toBe("S.A.");
+  });
 });
