@@ -4,7 +4,7 @@ import type { ColumnMapping, RawRow } from "@/lib/domain/types";
 import { extractMerchant } from "@/lib/domain/merchant";
 import { classifyTransaction } from "@/lib/domain/txnType";
 import { applyMapping } from "@/lib/csv/mapping";
-import { computeDedupHash, canonicalizeForHash } from "@/lib/domain/normalize";
+import { titleDedupBaseKey, titleDedupHash } from "@/lib/domain/normalize";
 import { loadRules } from "@/lib/repos/merchantMap";
 import { categorizeByRules } from "@/lib/categorize/rules";
 
@@ -104,16 +104,11 @@ export async function enrichFromCsv(
     const txnType = classifyTransaction(fields.title, fields.counterparty);
     const merchant = extractMerchant(txnType, fields.title, fields.counterparty);
 
-    const baseKey = JSON.stringify([input.accountId, fields.bookedAt, fields.amountMinor, canonicalizeForHash(fields.title)]);
+    // Same title-based dedup key/hash as the importer (shared helpers) so existing rows match.
+    const baseKey = titleDedupBaseKey(input.accountId, fields);
     const occ = occurrence.get(baseKey) ?? 0;
     occurrence.set(baseKey, occ + 1);
-    const dedupHash = computeDedupHash({
-      accountId: input.accountId,
-      bookedAt: fields.bookedAt,
-      amountMinor: fields.amountMinor,
-      rawDescription: fields.title,
-      occurrence: occ,
-    });
+    const dedupHash = titleDedupHash(input.accountId, fields, occ);
 
     const { data: existing, error } = await db
       .from("transactions")

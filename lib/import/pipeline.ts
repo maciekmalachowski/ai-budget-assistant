@@ -6,7 +6,7 @@ import type {
   TransactionDraft,
 } from "@/lib/domain/types";
 import { applyMapping } from "@/lib/csv/mapping";
-import { computeDedupHash, canonicalizeForHash } from "@/lib/domain/normalize";
+import { titleDedupBaseKey, titleDedupHash } from "@/lib/domain/normalize";
 import { extractMerchant } from "@/lib/domain/merchant";
 import { classifyTransaction } from "@/lib/domain/txnType";
 import { categorizeByRules } from "@/lib/categorize/rules";
@@ -41,23 +41,13 @@ export function buildTransactionDrafts(input: BuildDraftsInput): BuildDraftsResu
       const merchant = extractMerchant(txnType, fields.title, fields.counterparty);
 
       // Dedup hash is built from the TITLE (not the enriched rawDescription) to stay stable
-      // across the extraction change and avoid duplicate explosions on re-import.
-      const baseKey = JSON.stringify([
-        input.accountId,
-        fields.bookedAt,
-        fields.amountMinor,
-        canonicalizeForHash(fields.title),
-      ]);
+      // across the extraction change and avoid duplicate explosions on re-import. Shared with
+      // enrichFromCsv via the helpers in lib/domain/normalize so the two stay byte-identical.
+      const baseKey = titleDedupBaseKey(input.accountId, fields);
       const occurrence = occurrenceCounts.get(baseKey) ?? 0;
       occurrenceCounts.set(baseKey, occurrence + 1);
 
-      const dedupHash = computeDedupHash({
-        accountId: input.accountId,
-        bookedAt: fields.bookedAt,
-        amountMinor: fields.amountMinor,
-        rawDescription: fields.title,
-        occurrence,
-      });
+      const dedupHash = titleDedupHash(input.accountId, fields, occurrence);
 
       // For person-to-person transfers the merchant IS the payee name and rawDescription embeds
       // it, so brand-keyword `contains`/`regex` rules collide; scope those to the note (title).
