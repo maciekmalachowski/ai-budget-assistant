@@ -6,6 +6,7 @@ import { classifyTransaction } from "@/lib/domain/txnType";
 import { applyMapping } from "@/lib/csv/mapping";
 import { titleDedupBaseKey, titleDedupHash } from "@/lib/domain/normalize";
 import { loadRules } from "@/lib/repos/merchantMap";
+import { markMonthsStale } from "@/lib/repos/insights";
 import { categorizeByRules } from "@/lib/categorize/rules";
 
 type TxUpdate = Database["public"]["Tables"]["transactions"]["Update"];
@@ -27,11 +28,12 @@ const PAGE = 1000;
 export async function backfillMerchants(db: Db): Promise<BackfillResult> {
   const rules = await loadRules(db);
   const result: BackfillResult = { scanned: 0, merchantsUpdated: 0, recategorized: 0 };
+  const touchedMonths = new Set<string>();
 
   for (let from = 0; ; from += PAGE) {
     const { data, error } = await db
       .from("transactions")
-      .select("id, raw_description, merchant, category_id, category_source")
+      .select("id, booked_at, raw_description, merchant, category_id, category_source")
       .order("id")
       .range(from, from + PAGE - 1);
     if (error) throw new Error(error.message);
@@ -65,12 +67,15 @@ export async function backfillMerchants(db: Db): Promise<BackfillResult> {
         if (upErr) throw new Error(upErr.message);
         if ("merchant" in update) result.merchantsUpdated++;
         if ("category_id" in update) result.recategorized++;
+        touchedMonths.add(t.booked_at.slice(0, 7)); // its month's insight stats just changed
       }
     }
 
     if (rows.length < PAGE) break;
   }
 
+  // Re-derived merchants / re-applied rules changed those months' stats — invalidate caches.
+  await markMonthsStale(db, touchedMonths);
   return result;
 }
 
@@ -108,6 +113,7 @@ export async function enrichFromCsv(
 
   const rules = await loadRules(db);
   const occurrence = new Map<string, number>();
+  const touchedMonths = new Set<string>();
 
   for (const row of input.rows) {
     let fields;
@@ -127,7 +133,7 @@ export async function enrichFromCsv(
 
     const { data: existing, error } = await db
       .from("transactions")
-      .select("id, category_id, category_source")
+      .select("id, booked_at, category_id, category_source")
       .eq("account_id", input.accountId)
       .eq("dedup_hash", dedupHash)
       .is("title", null) // backfill only: never re-touch an already-enriched row
@@ -162,6 +168,11 @@ export async function enrichFromCsv(
     const { error: upErr } = await db.from("transactions").update(update).eq("id", existing.id);
     if (upErr) throw new Error(upErr.message);
     result.updated++;
+    touchedMonths.add(existing.booked_at.slice(0, 7)); // merchant/category just changed for this month
   }
+
+  // Enrichment rewrote merchant (and sometimes category) on pre-existing rows — often in
+  // months runImport never touched — so invalidate those months' cached insights.
+  await markMonthsStale(db, touchedMonths);
   return result;
 }

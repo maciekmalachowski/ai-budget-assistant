@@ -22,15 +22,19 @@ const DEFAULT_CURRENCY = process.env.NEXT_PUBLIC_DEFAULT_CURRENCY || "PLN";
  */
 export async function getOrGenerateInsight(
   deps: { db: Db; anthropic: Anthropic },
-  input: { period: string; currency?: string },
+  input: { period: string; currency?: string; forceRefresh?: boolean },
 ): Promise<InsightResult> {
   const { db, anthropic } = deps;
   const { fromISO, toISO, label } = parsePeriod(input.period);
   const periodStart = fromISO;
 
-  const cached = await getCachedInsight(db, "month", periodStart);
-  if (cached && !cached.stale && cached.summaryMd) {
-    return { period: input.period, summaryMd: cached.summaryMd, stats: cached.stats, cached: true };
+  // forceRefresh (the UI "Refresh" button) skips the cache read so the user can
+  // always regenerate — the escape hatch for a month cached while it was still empty.
+  if (!input.forceRefresh) {
+    const cached = await getCachedInsight(db, "month", periodStart);
+    if (cached && !cached.stale && cached.summaryMd) {
+      return { period: input.period, summaryMd: cached.summaryMd, stats: cached.stats, cached: true };
+    }
   }
 
   const current = await getTransactionsInRange(db, { fromISO, toISO });

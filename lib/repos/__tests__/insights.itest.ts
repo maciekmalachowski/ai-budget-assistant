@@ -1,6 +1,6 @@
 import { describe, it, expect, afterAll } from "vitest";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getCachedInsight, upsertInsight, markPeriodStale } from "@/lib/repos/insights";
+import { getCachedInsight, upsertInsight, markPeriodStale, markMonthsStale } from "@/lib/repos/insights";
 import { logQa } from "@/lib/repos/qaHistory";
 
 const db = createAdminClient();
@@ -28,6 +28,14 @@ describe.sequential("insights + qa_history repositories (integration)", () => {
 
   it("returns null for an uncached period", async () => {
     expect(await getCachedInsight(db, "week", PERIOD_START)).toBeNull();
+  });
+
+  it("markMonthsStale flips the matching month's cached insight stale", async () => {
+    await upsertInsight(db, { periodType: "month", periodStart: PERIOD_START, summaryMd: "fresh", stats: {} });
+    expect((await getCachedInsight(db, "month", PERIOD_START))?.stale).toBe(false);
+    // "2099-01" → period_start "2099-01-01"; an unrelated month must be untouched.
+    await markMonthsStale(db, ["2099-01", "2099-02"]);
+    expect((await getCachedInsight(db, "month", PERIOD_START))?.stale).toBe(true);
   });
 
   it("logs a Q&A interaction", async () => {

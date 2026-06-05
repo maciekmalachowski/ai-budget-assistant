@@ -30,10 +30,13 @@ export function InsightsView({ months, defaultPeriod }: { months: string[]; defa
 
   async function generate() {
     const id = ++reqId.current;
+    // If a summary is already showing, this click is a "Refresh" — force regeneration
+    // (bypass the server cache) so the user can recover a month cached while empty.
+    const force = data !== null;
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/insights?period=${period}`);
+      const res = await fetch(`/api/insights?period=${period}${force ? "&refresh=1" : ""}`);
       const json = (await res.json()) as InsightResponse | { error: string };
       if (id !== reqId.current) return; // superseded by a newer request / period change
       if (!res.ok || "error" in json) {

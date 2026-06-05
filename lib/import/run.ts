@@ -8,6 +8,7 @@ import { loadRules, insertAiRuleIfAbsent } from "@/lib/repos/merchantMap";
 import { getTaxonomy, getCategoryNameToId } from "@/lib/repos/categories";
 import { insertDrafts } from "@/lib/repos/transactions";
 import { createImportBatch, finalizeImportBatch } from "@/lib/repos/imports";
+import { markMonthsStale } from "@/lib/repos/insights";
 
 export interface RunImportInput {
   accountId: string;
@@ -115,6 +116,17 @@ export async function runImport(deps: { db: Db; anthropic: Anthropic }, input: R
       duplicateCount: duplicates,
       status: "imported",
     });
+
+    // New rows changed the totals for their months — drop the cached insights so the
+    // next visit regenerates. Best-effort: the import already committed and must not
+    // fail just because cache invalidation did.
+    if (inserted > 0) {
+      try {
+        await markMonthsStale(db, categorized.map((d) => d.bookedAt.slice(0, 7)));
+      } catch {
+        // ignore — a stale-but-served insight is better than a failed import
+      }
+    }
 
     return { batchId, rowCount: input.rows.length, inserted, duplicates, aiCategorized, errors };
   } catch (err) {

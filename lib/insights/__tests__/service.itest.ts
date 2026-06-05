@@ -57,4 +57,14 @@ describe.sequential("getOrGenerateInsight (integration)", () => {
     expect(second.summaryMd).toBe(first.summaryMd);
     expect(ai2.create).not.toHaveBeenCalled(); // served from cache, no model call
   });
+
+  it("forceRefresh regenerates even when a fresh cache exists", async () => {
+    const ai = fakeAnthropic();
+    const refreshed = await getOrGenerateInsight(
+      { db, anthropic: ai.client },
+      { period: PERIOD, forceRefresh: true },
+    );
+    expect(refreshed.cached).toBe(false); // bypassed the cache despite a fresh row from the prior test
+    expect(ai.create).toHaveBeenCalledTimes(1);
+  });
 });

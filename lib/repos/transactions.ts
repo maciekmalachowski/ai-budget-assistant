@@ -104,6 +104,27 @@ export async function getTransactionsInRange(
   }));
 }
 
+/**
+ * The distinct "YYYY-MM" months that the given transactions are booked in. Used to
+ * invalidate cached insights for exactly the affected months on correct/delete.
+ * Chunked like getExistingHashes to stay under PostgREST URL limits. Empty in → empty out.
+ */
+export async function getTransactionMonths(db: Db, ids: string[]): Promise<string[]> {
+  const months = new Set<string>();
+  for (let i = 0; i < ids.length; i += HASH_QUERY_CHUNK) {
+    const slice = ids.slice(i, i + HASH_QUERY_CHUNK);
+    const { data, error } = await db
+      .from("transactions")
+      .select("booked_at")
+      .in("id", slice)
+      .returns<{ booked_at: string }[]>();
+    if (error) throw new Error(error.message);
+    // booked_at is a Postgres `date`, returned as an ISO "YYYY-MM-DD" string.
+    for (const row of data ?? []) months.add(row.booked_at.slice(0, 7));
+  }
+  return [...months];
+}
+
 export interface TxnFilter {
   fromISO?: string;
   toISO?: string;

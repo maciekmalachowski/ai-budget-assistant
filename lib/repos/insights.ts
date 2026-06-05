@@ -76,3 +76,14 @@ export async function markPeriodStale(
     .eq("period_start", periodStart);
   if (error) throw new Error(error.message);
 }
+
+/**
+ * Mark the cached monthly insight stale for each distinct "YYYY-MM" month — call
+ * whenever transactions in those months change (import, recategorize, delete) so the
+ * next read regenerates instead of serving stale numbers. No-op on an empty input.
+ */
+export async function markMonthsStale(db: Db, months: Iterable<string>): Promise<void> {
+  for (const month of new Set(months)) {
+    await markPeriodStale(db, "month", `${month}-01`);
+  }
+}
