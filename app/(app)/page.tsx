@@ -27,7 +27,10 @@ export default async function DashboardPage() {
       <KpiCards
         spentThisMonthMinor={data.spentThisMonthMinor}
         spentLastMonthMinor={data.spentLastMonthMinor}
-        topCategory={data.topCategory}
+        netThisMonthMinor={data.netThisMonthMinor}
+        savingsRatePct={data.savingsRatePct}
+        projectedMonthEndMinor={data.projectedMonthEndMinor}
+        avgDailySpendMinor={data.avgDailySpendMinor}
         currency={data.currency}
       />
 
