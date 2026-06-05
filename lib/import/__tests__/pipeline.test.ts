@@ -111,6 +111,10 @@ describe("buildTransactionDrafts — Santander types", () => {
     expect(drafts[0].merchant).toBe("Julia Zakrzewska");
     expect(drafts[0].txnType).toBe("transfer");
     expect(drafts[0].rawDescription).toContain("JULIA ZAKRZEWSKA");
+    // Structured fields are carried through for richer display.
+    expect(drafts[0].title).toBe("Przelew na telefon Od: 48604263864 Do: 485*****130");
+    expect(drafts[0].counterparty).toBe("JULIA ZAKRZEWSKA");
+    expect(drafts[0].counterpartyAccount).toBe("PL18 1020 1752 0000 0102 0167 4100");
   });
 
   it("extracts the brand and tags 'card' for a card payment", () => {

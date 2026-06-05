@@ -8,6 +8,7 @@ import type { Delimiter } from "@/lib/csv/parse";
 import { layoutSignature } from "@/lib/csv/profile";
 import { saveProfile } from "@/lib/repos/imports";
 import { runImport } from "@/lib/import/run";
+import { enrichFromCsv } from "@/lib/transactions/backfillMerchants";
 import type { ColumnMapping, SupportedEncoding } from "@/lib/domain/types";
 
 export const runtime = "nodejs";
@@ -80,6 +81,15 @@ export async function POST(request: Request) {
     );
   } catch {
     return NextResponse.json({ error: "Import failed." }, { status: 500 });
+  }
+
+  // Auto-backfill: enrich pre-existing rows (imported before structured fields, or partial)
+  // with title/counterparty/account recovered from this CSV. Idempotent and matched by the
+  // same title-based dedup hash. Best-effort — a failure here must not fail the import.
+  try {
+    await enrichFromCsv(db, { accountId, rows: dataRows, mapping });
+  } catch {
+    // ignore: the new rows are already imported with their structured fields
   }
 
   // The layout profile is a convenience cache — a failed save must not fail a completed import.

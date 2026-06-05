@@ -45,5 +45,5 @@ export function applyMapping(row: RawRow, mapping: ColumnMapping): MappedFields 
     ? requireColumn(row, mapping.currencyColumn).trim() || mapping.defaultCurrency
     : mapping.defaultCurrency;
 
-  return { bookedAt, amountMinor, currency, title, counterparty, rawDescription };
+  return { bookedAt, amountMinor, currency, title, counterparty, counterpartyAccount, rawDescription };
 }

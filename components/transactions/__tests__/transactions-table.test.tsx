@@ -1,4 +1,5 @@
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { TransactionsTable } from "@/components/transactions/transactions-table";
 import type { TxnListItem } from "@/lib/repos/transactions";
@@ -6,9 +7,10 @@ import type { TxnListItem } from "@/lib/repos/transactions";
 vi.mock("@/app/(app)/transactions/actions", () => ({
   correctCategory: vi.fn(async () => ({ ok: true })),
   deleteTransactions: vi.fn(async () => ({ ok: true, deleted: 2 })),
+  updateNotes: vi.fn(async () => ({ ok: true })),
 }));
 
-import { deleteTransactions } from "@/app/(app)/transactions/actions";
+import { deleteTransactions, updateNotes } from "@/app/(app)/transactions/actions";
 
 afterEach(() => vi.clearAllMocks());
 
@@ -20,6 +22,10 @@ function row(over: Partial<TxnListItem> = {}): TxnListItem {
     currency: "PLN",
     merchant: "BIEDRONKA",
     rawDescription: "BIEDRONKA 123",
+    title: null,
+    counterparty: null,
+    counterpartyAccount: null,
+    notes: null,
     category: "Groceries",
     categorySource: "rule",
     aiConfidence: null,
@@ -69,5 +75,31 @@ describe("TransactionsTable bulk delete", () => {
     // All selected rows gone → bar disappears entirely.
     rerender(<TransactionsTable rows={[row({ id: "t3", merchant: "NEW" })]} {...PROPS} />);
     expect(screen.queryByText(/selected/i)).not.toBeInTheDocument();
+  });
+});
+
+describe("TransactionsTable row expansion", () => {
+  it("expands a row to reveal counterparty, raw description, and notes", () => {
+    render(
+      <TransactionsTable
+        rows={[row({ id: "t1", merchant: "BIEDRONKA", counterparty: "JULIA ZAKRZEWSKA", rawDescription: "Przelew JULIA" })]}
+        {...PROPS}
+      />,
+    );
+    expect(screen.queryByText(/JULIA ZAKRZEWSKA/)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /expand details for BIEDRONKA/i }));
+    expect(screen.getByText(/JULIA ZAKRZEWSKA/)).toBeInTheDocument();
+    expect(screen.getByText(/Przelew JULIA/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/^notes$/i)).toBeInTheDocument();
+  });
+
+  it("saves edited notes via the updateNotes action", async () => {
+    render(<TransactionsTable rows={[row({ id: "t1", merchant: "BIEDRONKA" })]} {...PROPS} />);
+    fireEvent.click(screen.getByRole("button", { name: /expand details for BIEDRONKA/i }));
+    await userEvent.type(screen.getByLabelText(/^notes$/i), "rent for May");
+    fireEvent.click(screen.getByRole("button", { name: /save notes/i }));
+    await waitFor(() =>
+      expect(updateNotes).toHaveBeenCalledWith({ transactionId: "t1", notes: "rent for May" }),
+    );
   });
 });

@@ -81,17 +81,32 @@ export interface EnrichResult {
 }
 
 /**
- * Recover counterparty names for ALREADY-IMPORTED rows from the original CSV without creating
- * duplicates. For each CSV row we recompute the (title-based) dedup hash exactly as the importer
- * does, find the existing transaction by (account_id, dedup_hash), and update its raw_description
- * + merchant — and its category when the row was not user-corrected. Idempotent.
+ * Recover structured fields (title/counterparty/account) for ALREADY-IMPORTED rows from the
+ * original CSV without creating duplicates. For each CSV row we recompute the (title-based)
+ * dedup hash exactly as the importer does, find the existing transaction by (account_id,
+ * dedup_hash), and update its raw_description + merchant + structured fields — and its category
+ * when the row was not user-corrected.
+ *
+ * Backfill-only + idempotent: only rows whose `title` is still null are touched, so rows already
+ * carrying structured fields (e.g. freshly imported in the same request) are left untouched —
+ * this is what stops the auto-enrich pass from clobbering a just-assigned AI category. As a
+ * fast path, the whole pass short-circuits when the account has no un-enriched rows, avoiding
+ * the per-row lookups entirely once a backfill has completed.
  */
 export async function enrichFromCsv(
   db: Db,
   input: { accountId: string; rows: RawRow[]; mapping: ColumnMapping },
 ): Promise<EnrichResult> {
-  const rules = await loadRules(db);
   const result: EnrichResult = { matched: 0, updated: 0, unmatched: 0 };
+
+  const { count: pending } = await db
+    .from("transactions")
+    .select("id", { count: "exact", head: true })
+    .eq("account_id", input.accountId)
+    .is("title", null);
+  if (!pending) return result; // nothing left to backfill — skip the per-row lookups
+
+  const rules = await loadRules(db);
   const occurrence = new Map<string, number>();
 
   for (const row of input.rows) {
@@ -115,6 +130,7 @@ export async function enrichFromCsv(
       .select("id, category_id, category_source")
       .eq("account_id", input.accountId)
       .eq("dedup_hash", dedupHash)
+      .is("title", null) // backfill only: never re-touch an already-enriched row
       .maybeSingle();
     if (error) throw new Error(error.message);
     if (!existing) {
@@ -123,7 +139,13 @@ export async function enrichFromCsv(
     }
     result.matched++;
 
-    const update: TxUpdate = { raw_description: fields.rawDescription, merchant };
+    const update: TxUpdate = {
+      raw_description: fields.rawDescription,
+      merchant,
+      title: fields.title || null,
+      counterparty: fields.counterparty || null,
+      counterparty_account: fields.counterpartyAccount || null,
+    };
     if (existing.category_source !== "user") {
       // Scope brand-keyword rules to the note for person transfers, so a payee name that
       // collides with a seed keyword (e.g. "Agata Nowak" vs AGATA) isn't mis-categorized.

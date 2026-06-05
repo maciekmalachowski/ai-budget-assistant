@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { Fragment, useEffect, useRef, useState, useTransition } from "react";
 import type { TxnListItem } from "@/lib/repos/transactions";
-import { correctCategory, deleteTransactions } from "@/app/(app)/transactions/actions";
+import { correctCategory, deleteTransactions, updateNotes } from "@/app/(app)/transactions/actions";
 import { formatMoneyMinor } from "@/lib/format";
 import { Select } from "@/components/ui/select";
 import { AI_CONFIDENCE_THRESHOLD } from "@/lib/import/ai-apply";
@@ -149,6 +149,80 @@ function DeleteBar({
   );
 }
 
+function NotesEditor({ row }: { row: TxnListItem }) {
+  const [value, setValue] = useState(row.notes ?? "");
+  const [pending, start] = useTransition();
+  const [status, setStatus] = useState<string | null>(null);
+  const dirty = value.trim() !== (row.notes ?? "").trim();
+
+  return (
+    <div className="flex flex-col gap-1">
+      <label className="text-muted-foreground text-xs font-medium" htmlFor={`notes-${row.id}`}>
+        Notes
+      </label>
+      <textarea
+        id={`notes-${row.id}`}
+        className="bg-background min-h-16 w-full rounded border p-2 text-sm"
+        value={value}
+        disabled={pending}
+        placeholder="Add a note…"
+        onChange={(e) => {
+          setValue(e.target.value);
+          setStatus(null);
+        }}
+      />
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          disabled={pending || !dirty}
+          className="rounded border px-2 py-1 text-xs font-medium hover:bg-muted disabled:opacity-50"
+          onClick={() => {
+            setStatus(null);
+            start(async () => {
+              const res = await updateNotes({ transactionId: row.id, notes: value });
+              setStatus(res.ok ? "Saved" : (res.error ?? "Failed"));
+            });
+          }}
+        >
+          {pending ? "Saving…" : "Save notes"}
+        </button>
+        {status ? <span className="text-muted-foreground text-xs">{status}</span> : null}
+      </div>
+    </div>
+  );
+}
+
+function DetailField({ label, value }: { label: string; value: string | null }) {
+  return (
+    <div>
+      <dt className="text-muted-foreground text-xs font-medium">{label}</dt>
+      <dd className="text-sm break-words">{value && value.trim() !== "" ? value : "—"}</dd>
+    </div>
+  );
+}
+
+function ExpandedDetail({ row }: { row: TxnListItem }) {
+  const source =
+    row.categorySource === "ai" && row.aiConfidence != null
+      ? `AI (${Math.round(row.aiConfidence * 100)}% confidence)`
+      : row.categorySource;
+  return (
+    <div className="bg-muted/30 grid gap-4 p-4 md:grid-cols-2">
+      <dl className="grid grid-cols-2 gap-3">
+        <DetailField label="Counterparty" value={row.counterparty} />
+        <DetailField label="Counterparty account" value={row.counterpartyAccount} />
+        <DetailField label="Title / note" value={row.title} />
+        <DetailField label="Currency" value={row.currency} />
+        <DetailField label="Category source" value={source} />
+        <div className="col-span-2">
+          <DetailField label="Raw description" value={row.rawDescription} />
+        </div>
+      </dl>
+      <NotesEditor row={row} />
+    </div>
+  );
+}
+
 export function TransactionsTable({
   rows,
   categories,
@@ -159,6 +233,7 @@ export function TransactionsTable({
   categoryColors: Record<string, string | null>;
 }) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   if (rows.length === 0) {
     return <p className="text-muted-foreground text-sm">No transactions match these filters.</p>;
@@ -206,28 +281,51 @@ export function TransactionsTable({
           </tr>
         </thead>
         <tbody>
-          {rows.map((t) => (
-            <tr key={t.id} className="border-b">
-              <td className="py-2 pr-4">
-                <input
-                  type="checkbox"
-                  className="size-4 cursor-pointer"
-                  checked={selectedIds.has(t.id)}
-                  aria-label={`Select transaction ${t.merchant ?? t.rawDescription}`}
-                  onChange={(e) => toggleOne(t.id, e.target.checked)}
-                />
-              </td>
-              <td className="py-2 pr-4 whitespace-nowrap">{t.bookedAt}</td>
-              <td className="py-2 pr-4">
-                <div className="font-medium">{t.merchant ?? t.rawDescription}</div>
-                {needsReview(t) ? <span className="text-xs text-amber-400">Needs review</span> : null}
-              </td>
-              <td className="py-2 pr-4">
-                <CategoryCell row={t} categories={categories} categoryColors={categoryColors} />
-              </td>
-              <td className={cnAmount(t.amountMinor)}>{formatMoneyMinor(t.amountMinor, t.currency)}</td>
-            </tr>
-          ))}
+          {rows.map((t) => {
+            const expanded = expandedId === t.id;
+            return (
+              <Fragment key={t.id}>
+                <tr className={expanded ? "border-b-0" : "border-b"}>
+                  <td className="py-2 pr-4">
+                    <input
+                      type="checkbox"
+                      className="size-4 cursor-pointer"
+                      checked={selectedIds.has(t.id)}
+                      aria-label={`Select transaction ${t.merchant ?? t.rawDescription}`}
+                      onChange={(e) => toggleOne(t.id, e.target.checked)}
+                    />
+                  </td>
+                  <td className="py-2 pr-4 whitespace-nowrap">{t.bookedAt}</td>
+                  <td className="py-2 pr-4">
+                    <button
+                      type="button"
+                      className="flex items-center gap-1 text-left font-medium hover:underline"
+                      aria-expanded={expanded}
+                      aria-label={`${expanded ? "Collapse" : "Expand"} details for ${t.merchant ?? t.rawDescription}`}
+                      onClick={() => setExpandedId(expanded ? null : t.id)}
+                    >
+                      <span aria-hidden className="text-muted-foreground inline-block w-3">
+                        {expanded ? "▾" : "▸"}
+                      </span>
+                      {t.merchant ?? t.rawDescription}
+                    </button>
+                    {needsReview(t) ? <span className="ml-4 text-xs text-amber-400">Needs review</span> : null}
+                  </td>
+                  <td className="py-2 pr-4">
+                    <CategoryCell row={t} categories={categories} categoryColors={categoryColors} />
+                  </td>
+                  <td className={cnAmount(t.amountMinor)}>{formatMoneyMinor(t.amountMinor, t.currency)}</td>
+                </tr>
+                {expanded ? (
+                  <tr className="border-b">
+                    <td colSpan={5} className="p-0">
+                      <ExpandedDetail row={t} />
+                    </td>
+                  </tr>
+                ) : null}
+              </Fragment>
+            );
+          })}
         </tbody>
       </table>
     </div>

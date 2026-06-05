@@ -265,6 +265,8 @@ export type Database = {
           booked_at: string
           category_id: string | null
           category_source: string
+          counterparty: string | null
+          counterparty_account: string | null
           created_at: string
           currency: string
           dedup_hash: string
@@ -273,6 +275,7 @@ export type Database = {
           merchant: string | null
           notes: string | null
           raw_description: string
+          title: string | null
           updated_at: string
         }
         Insert: {
@@ -282,6 +285,8 @@ export type Database = {
           booked_at: string
           category_id?: string | null
           category_source?: string
+          counterparty?: string | null
+          counterparty_account?: string | null
           created_at?: string
           currency: string
           dedup_hash: string
@@ -290,6 +295,7 @@ export type Database = {
           merchant?: string | null
           notes?: string | null
           raw_description: string
+          title?: string | null
           updated_at?: string
         }
         Update: {
@@ -299,6 +305,8 @@ export type Database = {
           booked_at?: string
           category_id?: string | null
           category_source?: string
+          counterparty?: string | null
+          counterparty_account?: string | null
           created_at?: string
           currency?: string
           dedup_hash?: string
@@ -307,6 +315,7 @@ export type Database = {
           merchant?: string | null
           notes?: string | null
           raw_description?: string
+          title?: string | null
           updated_at?: string
         }
         Relationships: [

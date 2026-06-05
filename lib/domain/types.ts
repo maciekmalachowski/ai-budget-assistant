@@ -51,6 +51,8 @@ export interface MappedFields {
   title: string;
   /** Counterparty (payee) name, or "" when not mapped. */
   counterparty: string;
+  /** Counterparty bank-account number, or "" when not mapped. */
+  counterpartyAccount: string;
   /** Full reconstructed line (title + counterparty + account) for display/search. */
   rawDescription: string;
 }
@@ -69,6 +71,10 @@ export interface TransactionDraft {
   currency: string;
   rawDescription: string;
   merchant: string;
+  /** Structured fields kept alongside rawDescription for richer display; set by the import pipeline. */
+  title?: string;
+  counterparty?: string;
+  counterpartyAccount?: string;
   /** Transient: drives AI-rule learning; not persisted to the DB. */
   txnType?: TxnType;
   dedupHash: string;

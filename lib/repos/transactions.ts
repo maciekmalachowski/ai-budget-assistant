@@ -54,6 +54,9 @@ export async function insertDrafts(
     currency: d.currency,
     raw_description: d.rawDescription,
     merchant: d.merchant,
+    title: d.title || null,
+    counterparty: d.counterparty || null,
+    counterparty_account: d.counterpartyAccount || null,
     category_id: d.categoryId,
     category_source: d.categorySource,
     ai_confidence: d.aiConfidence ?? null,
@@ -124,6 +127,10 @@ export interface TxnListItem {
   currency: string;
   merchant: string | null;
   rawDescription: string;
+  title: string | null;
+  counterparty: string | null;
+  counterpartyAccount: string | null;
+  notes: string | null;
   category: string | null;
   categorySource: string;
   aiConfidence: number | null;
@@ -142,7 +149,7 @@ export async function listTransactions(db: Db, filter: TxnFilter = {}): Promise<
   let q = db
     .from("transactions")
     .select(
-      "id, booked_at, amount_minor, currency, merchant, raw_description, category_source, ai_confidence, category:categories(name)",
+      "id, booked_at, amount_minor, currency, merchant, raw_description, title, counterparty, counterparty_account, notes, category_source, ai_confidence, category:categories(name)",
     );
   if (filter.fromISO) q = q.gte("booked_at", filter.fromISO);
   if (filter.toISO) q = q.lte("booked_at", filter.toISO);
@@ -167,6 +174,10 @@ export async function listTransactions(db: Db, filter: TxnFilter = {}): Promise<
         currency: string;
         merchant: string | null;
         raw_description: string;
+        title: string | null;
+        counterparty: string | null;
+        counterparty_account: string | null;
+        notes: string | null;
         category_source: string;
         ai_confidence: number | null;
         category: { name: string } | null;
@@ -180,6 +191,10 @@ export async function listTransactions(db: Db, filter: TxnFilter = {}): Promise<
     currency: r.currency,
     merchant: r.merchant,
     rawDescription: r.raw_description,
+    title: r.title,
+    counterparty: r.counterparty,
+    counterpartyAccount: r.counterparty_account,
+    notes: r.notes,
     category: r.category?.name ?? null,
     categorySource: r.category_source,
     aiConfidence: r.ai_confidence,
@@ -217,6 +232,16 @@ export async function updateTransactionCategory(
   const { error } = await db
     .from("transactions")
     .update({ category_id: categoryId, category_source: source, ai_confidence: null })
+    .eq("id", transactionId);
+  if (error) throw new Error(error.message);
+}
+
+/** Set (or clear, with "") a transaction's free-text notes. */
+export async function updateTransactionNotes(db: Db, transactionId: string, notes: string): Promise<void> {
+  const trimmed = notes.trim();
+  const { error } = await db
+    .from("transactions")
+    .update({ notes: trimmed === "" ? null : trimmed })
     .eq("id", transactionId);
   if (error) throw new Error(error.message);
 }
