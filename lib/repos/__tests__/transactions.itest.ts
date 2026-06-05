@@ -231,16 +231,19 @@ describe.sequential("structured fields + notes (integration)", () => {
 });
 
 describe("listTransactions same-day ordering", () => {
-  it("orders same-day rows newest-created first", async () => {
+  it("orders same-day rows by created_at descending (newest first)", async () => {
     const { data: acc } = await db.from("accounts").insert({ name: "SortAcc", currency: "PLN" }).select("id").single();
     const accountId = acc!.id;
     try {
+      // Set created_at explicitly with distinct values: a single batch INSERT assigns the same
+      // now() to every row, so without explicit timestamps the created_at-desc tiebreak has no
+      // resolution and the order is non-deterministic. Distinct timestamps test the real ordering.
       await db.from("transactions").insert([
-        { account_id: accountId, booked_at: "2026-06-10", amount_minor: -100, currency: "PLN", raw_description: "first", dedup_hash: "sort-h1" },
-        { account_id: accountId, booked_at: "2026-06-10", amount_minor: -200, currency: "PLN", raw_description: "second", dedup_hash: "sort-h2" },
+        { account_id: accountId, booked_at: "2026-06-10", amount_minor: -100, currency: "PLN", raw_description: "first", dedup_hash: "sort-h1", created_at: "2026-06-10T09:00:00Z" },
+        { account_id: accountId, booked_at: "2026-06-10", amount_minor: -200, currency: "PLN", raw_description: "second", dedup_hash: "sort-h2", created_at: "2026-06-10T10:00:00Z" },
       ]);
       const rows = await listTransactions(db, { accountId, limit: 10 });
-      // both same booked_at; created_at desc => the second insert comes first
+      // same booked_at; created_at desc => the later-created row ("second") comes first
       expect(rows[0].rawDescription).toBe("second");
       expect(rows[1].rawDescription).toBe("first");
     } finally {
