@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { insertDrafts, getExistingHashes, getTransactionsInRange, listTransactions, updateTransactionCategory, deleteTransactions } from "@/lib/repos/transactions";
+import { insertDrafts, getExistingHashes, getTransactionsInRange, listTransactions, updateTransactionCategory, deleteTransactions, updateTransactionNotes } from "@/lib/repos/transactions";
 import { getCategoryNameToId, getCategoryNameToId as getNameToId2 } from "@/lib/repos/categories";
 import type { TransactionDraft } from "@/lib/domain/types";
 
@@ -191,17 +191,59 @@ describe.sequential("deleteTransactions (integration)", () => {
   });
 });
 
+describe.sequential("structured fields + notes (integration)", () => {
+  let acctId: string;
+
+  beforeAll(async () => {
+    const { data, error } = await db.from("accounts").insert({ name: "ITEST struct acct", currency: "PLN" }).select("id").single();
+    if (error) throw new Error(error.message);
+    acctId = data.id;
+    await insertDrafts(db, acctId, null, [
+      draft({
+        dedupHash: "s1",
+        merchant: "Julia Zakrzewska",
+        title: "Przelew na telefon",
+        counterparty: "JULIA ZAKRZEWSKA",
+        counterpartyAccount: "PL18 1020 1752 0000 0102 0167 4100",
+      }),
+    ]);
+  });
+
+  afterAll(async () => {
+    await db.from("accounts").delete().eq("id", acctId);
+  });
+
+  it("round-trips title/counterparty/account through insert + list", async () => {
+    const [row] = await listTransactions(db, { accountId: acctId });
+    expect(row.title).toBe("Przelew na telefon");
+    expect(row.counterparty).toBe("JULIA ZAKRZEWSKA");
+    expect(row.counterpartyAccount).toBe("PL18 1020 1752 0000 0102 0167 4100");
+    expect(row.notes).toBeNull();
+  });
+
+  it("updateTransactionNotes sets and clears notes", async () => {
+    const [row] = await listTransactions(db, { accountId: acctId });
+    await updateTransactionNotes(db, row.id, "  rent for May  ");
+    expect((await listTransactions(db, { accountId: acctId }))[0].notes).toBe("rent for May");
+    await updateTransactionNotes(db, row.id, "   ");
+    expect((await listTransactions(db, { accountId: acctId }))[0].notes).toBeNull();
+  });
+});
+
 describe("listTransactions same-day ordering", () => {
-  it("orders same-day rows newest-created first", async () => {
+  it("orders same-day rows by created_at descending (newest first)", async () => {
     const { data: acc } = await db.from("accounts").insert({ name: "SortAcc", currency: "PLN" }).select("id").single();
     const accountId = acc!.id;
     try {
+      // Set created_at explicitly with distinct values: a single batch INSERT assigns the same
+      // now() to every row, so without explicit timestamps the created_at-desc tiebreak has no
+      // resolution and the order is non-deterministic. Distinct timestamps test the real ordering.
       await db.from("transactions").insert([
-        { account_id: accountId, booked_at: "2026-06-10", amount_minor: -100, currency: "PLN", raw_description: "first", dedup_hash: "sort-h1" },
-        { account_id: accountId, booked_at: "2026-06-10", amount_minor: -200, currency: "PLN", raw_description: "second", dedup_hash: "sort-h2" },
+        { account_id: accountId, booked_at: "2026-06-10", amount_minor: -100, currency: "PLN", raw_description: "first", dedup_hash: "sort-h1", created_at: "2026-06-10T09:00:00Z" },
+        { account_id: accountId, booked_at: "2026-06-10", amount_minor: -200, currency: "PLN", raw_description: "second", dedup_hash: "sort-h2", created_at: "2026-06-10T10:00:00Z" },
       ]);
       const rows = await listTransactions(db, { accountId, limit: 10 });
-      // both same booked_at; created_at desc => the second insert comes first
+      // same booked_at; created_at desc => the later-created row ("second") comes first
       expect(rows[0].rawDescription).toBe("second");
       expect(rows[1].rawDescription).toBe("first");
     } finally {

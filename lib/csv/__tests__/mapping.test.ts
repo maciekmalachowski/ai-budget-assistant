@@ -25,6 +25,7 @@ describe("applyMapping (signed)", () => {
       currency: "PLN",
       title: "BIEDRONKA 1234 WARSZAWA",
       counterparty: "",
+      counterpartyAccount: "",
       rawDescription: "BIEDRONKA 1234 WARSZAWA",
     });
   });
@@ -59,6 +60,7 @@ describe("applyMapping (debit/credit + multi-column description + currency)", ()
       currency: "EUR",
       title: "ACME Salary",
       counterparty: "",
+      counterpartyAccount: "",
       rawDescription: "ACME Salary",
     });
   });
@@ -89,10 +91,11 @@ const CP_ROW: RawRow = {
 };
 
 describe("applyMapping with counterparty", () => {
-  it("captures title and counterparty separately", () => {
+  it("captures title, counterparty, and counterparty account separately", () => {
     const f = applyMapping(CP_ROW, CP_MAPPING);
     expect(f.title).toBe("Przelew na telefon Od: 48604263864 Do: 485*****130");
     expect(f.counterparty).toBe("JULIA ZAKRZEWSKA");
+    expect(f.counterpartyAccount).toBe("PL18 1020 1752 0000 0102 0167 4100");
   });
 
   it("reconstructs raw_description from title + counterparty + account", () => {
