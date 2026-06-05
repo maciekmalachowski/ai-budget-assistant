@@ -186,6 +186,27 @@ export async function listTransactions(db: Db, filter: TxnFilter = {}): Promise<
   }));
 }
 
+/**
+ * Hard-delete the given transactions by id. Chunked on HASH_QUERY_CHUNK so the
+ * `.in("id", ...)` filter stays under PostgREST's URL limits on large batches
+ * (mirrors getExistingHashes). Returns the total number of rows actually removed.
+ */
+export async function deleteTransactions(db: Db, ids: string[]): Promise<number> {
+  if (ids.length === 0) return 0;
+
+  let deleted = 0;
+  for (let i = 0; i < ids.length; i += HASH_QUERY_CHUNK) {
+    const slice = ids.slice(i, i + HASH_QUERY_CHUNK);
+    const { error, count } = await db
+      .from("transactions")
+      .delete({ count: "exact" })
+      .in("id", slice);
+    if (error) throw new Error(error.message);
+    deleted += count ?? 0;
+  }
+  return deleted;
+}
+
 /** Set a transaction's category + how it was decided. Clears ai_confidence (used for user/rule corrections). */
 export async function updateTransactionCategory(
   db: Db,

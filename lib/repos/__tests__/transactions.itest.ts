@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { insertDrafts, getExistingHashes, getTransactionsInRange, listTransactions, updateTransactionCategory } from "@/lib/repos/transactions";
+import { insertDrafts, getExistingHashes, getTransactionsInRange, listTransactions, updateTransactionCategory, deleteTransactions } from "@/lib/repos/transactions";
 import { getCategoryNameToId, getCategoryNameToId as getNameToId2 } from "@/lib/repos/categories";
 import type { TransactionDraft } from "@/lib/domain/types";
 
@@ -155,6 +155,39 @@ describe.sequential("listTransactions needsReview filter (integration)", () => {
     const hi = all.find((r) => r.merchant === "HIAI");
     expect(hi?.categorySource).toBe("ai");
     expect(hi?.aiConfidence).toBeCloseTo(0.95, 2);
+  });
+});
+
+describe.sequential("deleteTransactions (integration)", () => {
+  let acctId: string;
+
+  beforeAll(async () => {
+    const { data, error } = await db.from("accounts").insert({ name: "ITEST delete acct", currency: "PLN" }).select("id").single();
+    if (error) throw new Error(error.message);
+    acctId = data.id;
+    await insertDrafts(db, acctId, null, [
+      draft({ dedupHash: "d1", merchant: "DEL1" }),
+      draft({ dedupHash: "d2", merchant: "DEL2" }),
+      draft({ dedupHash: "d3", merchant: "KEEP" }),
+    ]);
+  });
+
+  afterAll(async () => {
+    await db.from("accounts").delete().eq("id", acctId);
+  });
+
+  it("returns 0 and runs no query for an empty id list", async () => {
+    expect(await deleteTransactions(db, [])).toBe(0);
+  });
+
+  it("deletes only the given ids and leaves the rest", async () => {
+    const all = await listTransactions(db, { accountId: acctId });
+    const toDelete = all.filter((r) => r.merchant === "DEL1" || r.merchant === "DEL2").map((r) => r.id);
+    const removed = await deleteTransactions(db, toDelete);
+    expect(removed).toBe(2);
+
+    const after = await listTransactions(db, { accountId: acctId });
+    expect(after.map((r) => r.merchant)).toEqual(["KEEP"]);
   });
 });
 
