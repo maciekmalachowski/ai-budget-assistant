@@ -40,3 +40,27 @@ next-env.d.ts
 
 # git worktrees
 .worktrees/
+
+# Claude Code / ruflo — track hand-authored config, ignore generated + runtime.
+# .claude/ is mostly ruflo-generated (regenerable via `ruflo init`); we version only
+# settings.json + the project CLAUDE.md (at repo root) for reproducibility.
+.claude/*
+!.claude/settings.json
+.claude/settings.local.json
+
+# ruflo runtime state (swarm records, vector stores, locks)
+.claude-flow/
+.swarm/
+*.rvf
+*.rvf.lock
+ruvector.db
+
+# stray 0-byte files from shell-quoting mishaps (safe to delete manually)
+/{,
+/{,+
+/0
+/450
+/console.log('ERR'
+/r.merchant
+/t.rawDescription
+/the
