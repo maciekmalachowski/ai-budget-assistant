@@ -65,3 +65,38 @@ export function deltaPct(from: number, to: number): number | null {
   if (from === 0) return null;
   return Math.round(((to - from) / Math.abs(from)) * 1000) / 10;
 }
+
+export interface Pacing {
+  /** Average spend per elapsed day (negative, like stored spend). */
+  avgDailySpendMinor: number;
+  /** Run-rate projection of the full month's spend (negative). */
+  projectedSpendMinor: number;
+}
+
+/**
+ * Run-rate pacing for a month. `totalSpentMinor` is negative (sum of outflows).
+ * avgDaily = totalSpent / daysElapsed; projected = avgDaily × daysInMonth.
+ * Returns zeros before any day has elapsed. Pure — caller supplies the day counts.
+ */
+export function pacing(totalSpentMinor: number, daysElapsed: number, daysInMonth: number): Pacing {
+  if (daysElapsed <= 0) return { avgDailySpendMinor: 0, projectedSpendMinor: 0 };
+  const avg = totalSpentMinor / daysElapsed;
+  // Both round from the same unrounded `avg`. Rounding the projection once (rather than
+  // avgRounded × daysInMonth) keeps a COMPLETED month — daysElapsed === daysInMonth —
+  // projecting to exactly its actual spend; avgDailySpendMinor is an independent rounded
+  // display of the same rate, so avg × days may differ by sub-unit rounding. Intentional.
+  return {
+    avgDailySpendMinor: Math.round(avg),
+    projectedSpendMinor: Math.round(avg * daysInMonth),
+  };
+}
+
+/**
+ * Savings rate: the share of income that was NOT spent, as a percent rounded to one
+ * decimal. `netMinor` = income + spent (spent is negative). Returns null when there is
+ * no income (undefined); may be negative when the month overspent its income.
+ */
+export function savingsRate(totalIncomeMinor: number, netMinor: number): number | null {
+  if (totalIncomeMinor <= 0) return null;
+  return Math.round((netMinor / totalIncomeMinor) * 1000) / 10;
+}

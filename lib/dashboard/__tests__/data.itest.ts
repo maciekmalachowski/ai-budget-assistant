@@ -39,17 +39,22 @@ afterAll(async () => {
 });
 
 describe.sequential("getDashboardData (integration)", () => {
-  it("assembles month spend, top category, a 6-point trend, and recent transactions", async () => {
-    const d = await getDashboardData(db, { month: "2026-05", accountId: acctId });
+  it("assembles month spend/income/net, pacing, category split, a 6-point trend, and recents", async () => {
+    // todayISO at month end → daysElapsed == daysInMonth (31), so projection == actual spend.
+    const d = await getDashboardData(db, { month: "2026-05", accountId: acctId, todayISO: "2026-05-31" });
     expect(d.spentThisMonthMinor).toBe(-18000);
     expect(d.spentLastMonthMinor).toBe(-9000);
-    expect(d.topCategory).toEqual({ category: "Groceries", spentMinor: -13000 });
+    expect(d.incomeThisMonthMinor).toBe(0);
+    expect(d.netThisMonthMinor).toBe(-18000);
+    expect(d.savingsRatePct).toBeNull(); // no income this month
+    expect(d.projectedMonthEndMinor).toBe(-18000); // elapsed==full month
+    expect(d.avgDailySpendMinor).toBe(-581); // round(-18000 / 31)
     expect(d.byCategory).toEqual([
       { category: "Groceries", spentMinor: -13000 },
       { category: "Uncategorized", spentMinor: -5000 },
     ]);
     expect(d.trend).toHaveLength(6);
-    expect(d.trend[d.trend.length - 1]).toEqual({ month: "2026-05", spentMinor: -18000 });
+    expect(d.trend[d.trend.length - 1]).toEqual({ month: "2026-05", spentMinor: -18000, incomeMinor: 0, netMinor: -18000 });
     expect(d.recent.length).toBe(3);
     expect(d.recent[0].bookedAt).toBe("2026-05-20"); // newest first
   });

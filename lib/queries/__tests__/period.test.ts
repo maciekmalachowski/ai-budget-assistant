@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parsePeriod, previousMonth } from "@/lib/queries/period";
+import { parsePeriod, previousMonth, daysInMonth, daysElapsed } from "@/lib/queries/period";
 
 describe("parsePeriod", () => {
   it("parses a whole month with correct last day and label", () => {
@@ -40,5 +40,29 @@ describe("previousMonth", () => {
     expect(() => previousMonth("2026-05-01")).toThrow();
     expect(() => previousMonth("2026-13")).toThrow();
     expect(() => previousMonth("2026-00")).toThrow();
+  });
+});
+
+describe("daysInMonth", () => {
+  it("returns the day count including leap February", () => {
+    expect(daysInMonth("2026-05")).toBe(31);
+    expect(daysInMonth("2026-02")).toBe(28);
+    expect(daysInMonth("2024-02")).toBe(29);
+  });
+  it("throws on a bad month", () => {
+    expect(() => daysInMonth("2026-13")).toThrow();
+  });
+});
+
+describe("daysElapsed", () => {
+  it("is the full month for a wholly-past month", () => {
+    expect(daysElapsed("2026-04", "2026-05-10")).toBe(30);
+  });
+  it("is zero for a wholly-future month", () => {
+    expect(daysElapsed("2026-06", "2026-05-10")).toBe(0);
+  });
+  it("is today's day-of-month for the in-progress month, clamped to the month length", () => {
+    expect(daysElapsed("2026-05", "2026-05-10")).toBe(10);
+    expect(daysElapsed("2026-02", "2026-02-31")).toBe(28);
   });
 });

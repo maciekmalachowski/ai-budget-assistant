@@ -45,6 +45,32 @@ export function parsePeriod(period: string): PeriodBounds {
   throw new Error(`Unrecognized period format: ${period}`);
 }
 
+/** Number of days in a "YYYY-MM" month. Throws if not a month. */
+export function daysInMonth(month: string): number {
+  const m = /^(\d{4})-(\d{2})$/.exec(month.trim());
+  if (!m) throw new Error(`Not a month: ${month}`);
+  const year = Number(m[1]);
+  const mon = Number(m[2]);
+  if (mon < 1 || mon > 12) throw new Error(`Invalid month: ${month}`);
+  return new Date(Date.UTC(year, mon, 0)).getUTCDate();
+}
+
+/**
+ * Days elapsed in `month` ("YYYY-MM") as of `todayISO` ("YYYY-MM-DD"):
+ *  - a wholly-past month → the full day count,
+ *  - a wholly-future month → 0,
+ *  - the in-progress month → today's day-of-month (clamped to [0, daysInMonth]).
+ * Lexical "YYYY-MM" comparison is correct for ordering.
+ */
+export function daysElapsed(month: string, todayISO: string): number {
+  const dim = daysInMonth(month);
+  const todayMonth = todayISO.slice(0, 7);
+  if (todayMonth > month) return dim;
+  if (todayMonth < month) return 0;
+  const day = Number(todayISO.slice(8, 10));
+  return Math.min(Math.max(Number.isFinite(day) ? day : 0, 0), dim);
+}
+
 /** The "YYYY-MM" month immediately before a "YYYY-MM" month. Throws if not a month. */
 export function previousMonth(month: string): string {
   const m = /^(\d{4})-(\d{2})$/.exec(month.trim());
