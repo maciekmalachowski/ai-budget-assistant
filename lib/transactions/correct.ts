@@ -1,7 +1,8 @@
 import type { Db } from "@/lib/supabase/admin";
 import { getCategoryNameToId } from "@/lib/repos/categories";
-import { updateTransactionCategory } from "@/lib/repos/transactions";
+import { getTransactionMonths, updateTransactionCategory } from "@/lib/repos/transactions";
 import { upsertUserRule } from "@/lib/repos/merchantMap";
+import { markMonthsStale } from "@/lib/repos/insights";
 
 /**
  * Apply a manual category correction: set the transaction to the chosen category
@@ -19,6 +20,14 @@ export async function applyCorrection(
   if (!categoryId) throw new Error(`Unknown category: ${input.categoryName}`);
 
   await updateTransactionCategory(db, input.transactionId, categoryId, "user");
+
+  // The row's category changed, so its month's cached insight is now wrong — drop it.
+  // Best-effort: the correction already committed; cache invalidation must not fail it.
+  try {
+    await markMonthsStale(db, await getTransactionMonths(db, [input.transactionId]));
+  } catch {
+    // ignore — the next read/refresh still regenerates
+  }
 
   const pattern = (input.merchant ?? "").trim();
   if (pattern) {

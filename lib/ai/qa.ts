@@ -56,7 +56,11 @@ export async function answerQuestion(
           : { error: `Unknown tool: ${block.name}` };
         resultText = JSON.stringify(output);
       } catch (err) {
-        resultText = JSON.stringify({ error: err instanceof Error ? err.message : String(err) });
+        const message = err instanceof Error ? err.message : String(err);
+        // The model otherwise only sees this inside the tool_result and paraphrases it
+        // (e.g. "wrong or missing API key") — log the real cause for diagnosis.
+        console.error(`[qa] tool "${block.name}" failed:`, message);
+        resultText = JSON.stringify({ error: message });
       }
       toolResults.push({ type: "tool_result", tool_use_id: block.id, content: resultText });
     }

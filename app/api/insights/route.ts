@@ -14,15 +14,19 @@ export async function GET(request: Request) {
   const user = await getAuthedUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const period = new URL(request.url).searchParams.get("period");
-  const parsed = periodSchema.safeParse(period);
+  const params = new URL(request.url).searchParams;
+  const parsed = periodSchema.safeParse(params.get("period"));
   if (!parsed.success) {
     return NextResponse.json({ error: "Query param 'period' must be YYYY-MM" }, { status: 400 });
   }
+  const forceRefresh = params.get("refresh") === "1";
 
   const db = createAdminClient();
   try {
-    const result = await getOrGenerateInsight({ db, anthropic: getAnthropicClient() }, { period: parsed.data });
+    const result = await getOrGenerateInsight(
+      { db, anthropic: getAnthropicClient() },
+      { period: parsed.data, forceRefresh },
+    );
     return NextResponse.json(result);
   } catch {
     return NextResponse.json({ error: "Could not generate insights for that period." }, { status: 502 });

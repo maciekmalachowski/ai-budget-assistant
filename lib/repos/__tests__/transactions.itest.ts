@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { insertDrafts, getExistingHashes, getTransactionsInRange, listTransactions, updateTransactionCategory, deleteTransactions, updateTransactionNotes } from "@/lib/repos/transactions";
+import { insertDrafts, getExistingHashes, getTransactionsInRange, listTransactions, updateTransactionCategory, deleteTransactions, updateTransactionNotes, getDistinctMonths } from "@/lib/repos/transactions";
 import { getCategoryNameToId, getCategoryNameToId as getNameToId2 } from "@/lib/repos/categories";
 import type { TransactionDraft } from "@/lib/domain/types";
 
@@ -227,6 +227,34 @@ describe.sequential("structured fields + notes (integration)", () => {
     expect((await listTransactions(db, { accountId: acctId }))[0].notes).toBe("rent for May");
     await updateTransactionNotes(db, row.id, "   ");
     expect((await listTransactions(db, { accountId: acctId }))[0].notes).toBeNull();
+  });
+});
+
+describe.sequential("getDistinctMonths (integration)", () => {
+  let acctId: string;
+
+  beforeAll(async () => {
+    const { data, error } = await db.from("accounts").insert({ name: "ITEST months acct", currency: "PLN" }).select("id").single();
+    if (error) throw new Error(error.message);
+    acctId = data.id;
+    await insertDrafts(db, acctId, null, [
+      draft({ dedupHash: "mo1", bookedAt: "2026-06-15" }),
+      draft({ dedupHash: "mo2", bookedAt: "2026-06-02" }), // same month as mo1 → deduped
+      draft({ dedupHash: "mo3", bookedAt: "2026-03-20" }),
+    ]);
+  });
+
+  afterAll(async () => {
+    await db.from("accounts").delete().eq("id", acctId);
+  });
+
+  it("returns distinct YYYY-MM months, newest-first and deduped", async () => {
+    const months = await getDistinctMonths(db);
+    expect(months).toContain("2026-06");
+    expect(months).toContain("2026-03");
+    expect(new Set(months).size).toBe(months.length); // deduped
+    const desc = [...months].sort((a, b) => (a < b ? 1 : a > b ? -1 : 0));
+    expect(months).toEqual(desc); // already newest-first
   });
 });
 

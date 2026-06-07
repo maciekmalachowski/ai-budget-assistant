@@ -3,7 +3,12 @@
 import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { applyCorrection } from "@/lib/transactions/correct";
-import { deleteTransactions as deleteTransactionsRepo, updateTransactionNotes } from "@/lib/repos/transactions";
+import {
+  deleteTransactions as deleteTransactionsRepo,
+  getTransactionMonths,
+  updateTransactionNotes,
+} from "@/lib/repos/transactions";
+import { markMonthsStale } from "@/lib/repos/insights";
 
 const MAX_NOTES_LEN = 2000;
 
@@ -52,7 +57,18 @@ export async function deleteTransactions(input: { ids: string[] }): Promise<Dele
     return { ok: false, error: "No transactions selected." };
   }
   try {
-    const deleted = await deleteTransactionsRepo(createAdminClient(), ids);
+    const db = createAdminClient();
+    // Capture the affected months before the rows are gone, so we can drop their
+    // now-stale cached insights after the delete.
+    const months = await getTransactionMonths(db, ids);
+    const deleted = await deleteTransactionsRepo(db, ids);
+    // Best-effort: the rows are already gone — a stale-cache flip must not turn a
+    // successful delete into a user-facing error.
+    try {
+      await markMonthsStale(db, months);
+    } catch {
+      // ignore — the next read/refresh still regenerates
+    }
     revalidatePath("/transactions");
     revalidatePath("/");
     return { ok: true, deleted };
