@@ -91,3 +91,44 @@ export function createQueryTools(db: Db): QueryTools {
     },
   };
 }
+
+/**
+ * Wrap a primary tool set so that any tool whose *infrastructure* fails (e.g. the
+ * `readonly_qa` JWT is rejected by PostgREST, or its role/policies aren't on the DB)
+ * transparently retries on a `fallback` tool set, logging the real error once. Zod
+ * validation errors are NOT retried — they flow back to the model so it can fix its
+ * arguments. This keeps the hardened readonly read path when the env is correct, but
+ * never breaks Q&A when it isn't (the query tools only ever SELECT either way).
+ */
+export function withReadonlyFallback(
+  primary: QueryTools,
+  fallback: QueryTools,
+  log: (info: { tool: string; error: string }) => void = () => {},
+): QueryTools {
+  const p = primary as unknown as Record<string, (i: unknown) => Promise<unknown>>;
+  const f = fallback as unknown as Record<string, (i: unknown) => Promise<unknown>>;
+  const out: Record<string, (i: unknown) => Promise<unknown>> = {};
+  for (const name of Object.keys(p)) {
+    // Fail loud at construction if the shapes diverge, rather than a confusing
+    // "f[name] is not a function" buried in the fallback path at request time.
+    if (typeof f[name] !== "function") {
+      throw new Error(`withReadonlyFallback: fallback is missing tool "${name}"`);
+    }
+    out[name] = async (input) => {
+      let primaryErr: unknown;
+      try {
+        return await p[name](input);
+      } catch (err) {
+        if (err instanceof z.ZodError) throw err; // bad args → let the model correct them
+        primaryErr = err;
+        log({ tool: name, error: err instanceof Error ? err.message : String(err) });
+      }
+      try {
+        return await f[name](input);
+      } catch {
+        throw primaryErr; // both paths failed → surface the original readonly cause, not the fallback's
+      }
+    };
+  }
+  return out as unknown as QueryTools;
+}

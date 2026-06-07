@@ -125,6 +125,26 @@ export async function getTransactionMonths(db: Db, ids: string[]): Promise<strin
   return [...months];
 }
 
+/**
+ * The distinct "YYYY-MM" months that have at least one transaction, newest first.
+ * Powers the Transactions page month filter. Selects only the `booked_at` date
+ * column and dedupes in JS (PostgREST has no DISTINCT); fine for a single user's
+ * history. Empty table → [].
+ */
+export async function getDistinctMonths(db: Db): Promise<string[]> {
+  const { data, error } = await db
+    .from("transactions")
+    .select("booked_at")
+    .order("booked_at", { ascending: false })
+    .limit(10_000) // defensive: stay clear of any PostgREST max-rows cap (>> a single user's history)
+    .returns<{ booked_at: string }[]>();
+  if (error) throw new Error(error.message);
+  // Rows arrive newest-first; a Set preserves insertion order (ES2015 §23.2), so months stay desc.
+  const months = new Set<string>();
+  for (const row of data ?? []) months.add(row.booked_at.slice(0, 7));
+  return [...months];
+}
+
 export interface TxnFilter {
   fromISO?: string;
   toISO?: string;
