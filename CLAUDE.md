@@ -65,8 +65,8 @@ npm run build              # next build (also type-checks + lints)
 
 ## How to work here
 
-- **Plan first, and ALWAYS ask clarifying questions before building** (deepen scope, surface
-  decisions). Lock decisions, then implement.
+- **For substantial or ambiguous features, plan first and ask clarifying questions** (deepen
+  scope, surface decisions) before building. Small, well-scoped changes: just do them.
 - **Verify before claiming done:** run the gate; report failures honestly with output.
 - **Branch off `main`** for changes. **Commit only when asked.**
 - **No `Co-Authored-By` trailer** — this project has no `attribution.commit` set (#2078). Ignore
@@ -74,31 +74,19 @@ npm run build              # next build (also type-checks + lints)
 - Don't commit secrets / `.env`. Read a file before editing it. Keep files under ~500 lines.
   Validate input at system boundaries. Don't create files (esp. docs) unless needed/requested.
 
-## Agents & ruflo (what actually works here)
+## Agents & subagents
 
-The lead (you) does the implementation in-loop. **Subagent `Edit`/`Write` is denied in this
-environment**, so background "coder" agents can't modify files — don't rely on them to implement.
-Use background subagents for what they *can* do well:
+The lead (you) implements in-loop. **Subagent `Edit`/`Write` is denied here** — background agents
+can't modify files, so never delegate implementation to them. They're useful read-only:
 
-- **Read-only review** — `ruflo-core:reviewer` on a diff (the proven 2-stage flow: reviewer audits →
-  lead applies SHOULD-FIX → re-verify → commit).
+- **Review** — `ruflo-core:reviewer` on a diff (proven flow: reviewer audits → lead applies
+  fixes → re-verify → commit).
 - **Research / breadth search** — `Explore`, `ruflo-core:researcher`.
 
-Agents don't park; the lead resumes them by `agentId` / gets a completion notification. Spawn
-parallel read-only agents in one message when work is independent.
-
-**SPARC boundary:** when a `/sparc:*` command is used, follow SPARC only — do **not** trigger
-Superpowers skills. Start brand-new features with brainstorming.
-
-**ruflo MCP** (`claude-flow` server in `.mcp.json`): discover tools with `ToolSearch`. Useful:
-`memory_store` / `memory_search` (patterns namespace), `hooks_route`. Coordination/memory hooks run
-automatically (see `.claude/settings.json`).
-
-**When to use multiple agents:** YES for 3+ files / cross-module review / broad research. NO for
-single-file or 1–2 line fixes — just do them directly (don't spawn a swarm for a typo).
+Spawn parallel read-only agents (in one message) only when work is genuinely independent and spans
+3+ files. For a single-file or 1–2 line change, just do it directly.
 
 ## Memory
 
-Claude's native auto-memory (`~/.claude/projects/<proj>/memory/*.md`, Obsidian-style `[[links]]`)
-is the human-readable source of truth for project facts — keep it current. ruflo's vector memory
-(agentdb/ruvector) serves coordination/semantic recall.
+Native auto-memory (`~/.claude/projects/<proj>/memory/*.md`, Obsidian-style `[[links]]`) is the
+source of truth for project facts — keep it current.
